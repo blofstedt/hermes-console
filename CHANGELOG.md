@@ -3,6 +3,19 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.10 (4965)
+
+- Fixed the agent's reply being lost when the app was minimized mid-turn. An
+  active turn now holds the foreground service for its duration, so Android
+  cannot freeze the process and kill the turn's connection.
+- Fixed a conversation that could never finish loading after being left and
+  reopened. A turn whose transport died while the app was suspended is now
+  detected on resume and on reopen, and is either re-attached or closed with a
+  visible error instead of showing a spinner forever.
+- User-facing messages that were still Spanish in English builds are now
+  English: chat and attachment errors, the bridge and installer flows, voice,
+  and companion import.
+
 ## 1.2.9 (4964)
 
 - Replaced raw Desktop session-owner rejections with private, actionable UI,
