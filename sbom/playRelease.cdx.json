@@ -11038,7 +11038,7 @@
     "properties": [
       {
         "name": "hermes.input.sha256",
-        "value": "3f0426163114c20fa941205d126bbd1632eccc2b7b3c92b4b216dd8983c48906"
+        "value": "4370e52cc49def15d72ef0a160e8462af7feff127885d2d0204a97ffbda5b084"
       },
       {
         "name": "hermes.android.variant",
@@ -11050,7 +11050,7 @@
       }
     ]
   },
-  "serialNumber": "urn:uuid:874d9e26-465b-4307-a5cc-02c4f85da411",
+  "serialNumber": "urn:uuid:a2c2a194-4a70-4a83-ada2-2a0c20477b5d",
   "specVersion": "1.6",
   "version": 1
 }
