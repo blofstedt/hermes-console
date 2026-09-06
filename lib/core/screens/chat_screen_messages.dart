@@ -365,6 +365,7 @@ class _ErrorBubbleState extends State<_ErrorBubble> {
 
   String _kindLabel(_ErrorKind kind, Strings s) => switch (kind) {
     _ErrorKind.connection => s.chaErrConnection,
+    _ErrorKind.sessionMissing => s.chaErrSessionMissing,
     _ErrorKind.model => s.chaErrModel,
     _ErrorKind.tool => s.chaErrTool,
     _ErrorKind.local => s.chaErrLocal,
@@ -376,6 +377,7 @@ class _ErrorBubbleState extends State<_ErrorBubble> {
 
   String? _kindHint(_ErrorKind kind, Strings s) => switch (kind) {
     _ErrorKind.connection => s.chaErrHintConnection,
+    _ErrorKind.sessionMissing => s.chaErrHintSessionMissing,
     _ErrorKind.model => s.chaErrHintModel,
     _ErrorKind.tool => null,
     _ErrorKind.local => s.chaErrHintLocal,

@@ -10132,6 +10132,7 @@ class _ChatScreenState extends State<ChatScreen>
       final kind = classifyChatError(_error!);
       final kindLabel = switch (kind) {
         ChatErrorKind.connection => str.chaErrConnection,
+        ChatErrorKind.sessionMissing => str.chaErrSessionMissing,
         ChatErrorKind.model => str.chaErrModel,
         ChatErrorKind.tool => str.chaErrTool,
         ChatErrorKind.local => str.chaErrLocal,
@@ -10188,21 +10189,45 @@ class _ChatScreenState extends State<ChatScreen>
                   ),
                 ],
                 const SizedBox(height: 14),
-                HermesSecondaryButton(
-                  icon: Icons.refresh_rounded,
-                  label: str.chaRetry,
-                  color: colors.error,
-                  onTap: _fetchMessages,
-                ),
-                TextButton(
-                  onPressed: () =>
-                      setState(() => _showErrorDetail = !_showErrorDetail),
-                  child: Text(
-                    _showErrorDetail
-                        ? str.chaErrHideDetails
-                        : str.chaErrViewDetails,
-                    style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                // Una sesión que el servidor no tiene no vuelve reintentando:
+                // ofrecer «reintentar» ahí solo invita a repetir el fallo.
+                if (kind != ChatErrorKind.sessionMissing)
+                  HermesSecondaryButton(
+                    icon: Icons.refresh_rounded,
+                    label: str.chaRetry,
+                    color: colors.error,
+                    onTap: _fetchMessages,
                   ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () =>
+                          setState(() => _showErrorDetail = !_showErrorDetail),
+                      child: Text(
+                        _showErrorDetail
+                            ? str.chaErrHideDetails
+                            : str.chaErrViewDetails,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    // El texto del fallo es justo lo que hay que pegar en un
+                    // issue; antes solo se podía transcribir a mano.
+                    TextButton(
+                      onPressed: () =>
+                          unawaited(HermesSnack.copied(context, _error!)),
+                      child: Text(
+                        str.chaErrCopy,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

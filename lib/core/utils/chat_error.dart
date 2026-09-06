@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// errores locales ni timeouts locales con errores de API.
 enum ChatErrorKind {
   connection,
+  sessionMissing,
   model,
   tool,
   local,
@@ -16,15 +17,16 @@ enum ChatErrorKind {
 
 extension ChatErrorKindMeta on ChatErrorKind {
   IconData get icon => switch (this) {
-        ChatErrorKind.connection => Icons.wifi_off_rounded,
-        ChatErrorKind.model => Icons.cloud_off_rounded,
-        ChatErrorKind.tool => Icons.build_circle_outlined,
-        ChatErrorKind.local => Icons.phonelink_erase_outlined,
-        ChatErrorKind.localColdStart => Icons.hourglass_empty_rounded,
-        ChatErrorKind.firstTokenTimeout => Icons.hourglass_empty_rounded,
-        ChatErrorKind.searchToolUnavailable => Icons.search_off_rounded,
-        ChatErrorKind.unknown => Icons.error_outline_rounded,
-      };
+    ChatErrorKind.connection => Icons.wifi_off_rounded,
+    ChatErrorKind.sessionMissing => Icons.history_toggle_off_rounded,
+    ChatErrorKind.model => Icons.cloud_off_rounded,
+    ChatErrorKind.tool => Icons.build_circle_outlined,
+    ChatErrorKind.local => Icons.phonelink_erase_outlined,
+    ChatErrorKind.localColdStart => Icons.hourglass_empty_rounded,
+    ChatErrorKind.firstTokenTimeout => Icons.hourglass_empty_rounded,
+    ChatErrorKind.searchToolUnavailable => Icons.search_off_rounded,
+    ChatErrorKind.unknown => Icons.error_outline_rounded,
+  };
 }
 
 /// Clasifica un string de error en una categoría accionable para la UI.
@@ -35,6 +37,19 @@ extension ChatErrorKindMeta on ChatErrorKind {
 ChatErrorKind classifyChatError(String raw) {
   final e = raw.toLowerCase();
   bool has(List<String> needles) => needles.any(e.contains);
+
+  // 0. La sesión no existe en el servidor. Va PRIMERO porque es terminal
+  //    (reintentar nunca puede funcionar) y porque su texto contiene
+  //    "not found", que si no caería en el bloque de modelo/credenciales.
+  //    Ocurre cuando el Dashboard lista una sesión que el Gateway no tiene.
+  if (has([
+    'session_not_found',
+    'session not found',
+    'no such session',
+    'unknown session',
+  ])) {
+    return ChatErrorKind.sessionMissing;
+  }
 
   // 1a. Primer token no llegó en tiempo (remoto): emitido por el timer de
   //     active_chat_service.dart. Prefijo "firstTokenTimeout:" garantiza detección.
@@ -132,6 +147,24 @@ ChatErrorKind classifyChatError(String raw) {
   // 5. Errores de herramienta / aprobación.
   if (has(['tool', 'approval', 'command failed', 'exit code'])) {
     return ChatErrorKind.tool;
+  }
+
+  // 6. El servidor respondió, pero mal: 5xx o un cuerpo que no parsea. Iban a
+  //    `unknown` y se mostraban como un escueto «Error» que no dice nada. Van
+  //    al final para no robarle un 500 a una categoría más específica.
+  if (has([
+    'http 500',
+    'http 502',
+    'http 503',
+    'http 504',
+    'internal server error',
+    'bad gateway',
+    'service unavailable',
+    'gateway timeout',
+    'formatexception',
+    'unexpected character',
+  ])) {
+    return ChatErrorKind.connection;
   }
 
   return ChatErrorKind.unknown;

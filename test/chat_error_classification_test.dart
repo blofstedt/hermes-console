@@ -210,4 +210,53 @@ void main() {
       );
     });
   });
+
+  group('classifyChatError — sesión inexistente', () {
+    // Regresión real: el Dashboard listaba la sesión y el Gateway la negaba.
+    // El 404 del REST llegaba a la UI como «Error» sin categoría, y encima
+    // ofrecía un reintento que no podía funcionar nunca.
+    test('404 session_not_found del gateway → sessionMissing', () {
+      const msg =
+          'Exception: HTTP 404: {"error": {"message": "Session not found: '
+          '20260906_194238_096b17", "type": "invalid_request_error", '
+          '"param": null, "code": "session_not_found"}}';
+      expect(classifyChatError(msg), ChatErrorKind.sessionMissing);
+    });
+
+    test('"Session not found" en prosa → sessionMissing', () {
+      expect(
+        classifyChatError('Session not found: abc123'),
+        ChatErrorKind.sessionMissing,
+      );
+    });
+
+    // El bloque de modelo también contiene "model not found": la sesión
+    // inexistente va antes justamente para que "not found" no se lo robe.
+    test('"model not found" sigue siendo model, no sessionMissing', () {
+      expect(classifyChatError('model not found: gpt-x'), ChatErrorKind.model);
+    });
+  });
+
+  group('classifyChatError — el servidor responde mal', () {
+    test('500 del gateway → connection (antes: unknown)', () {
+      expect(
+        classifyChatError('Exception: HTTP 500: Internal Server Error'),
+        ChatErrorKind.connection,
+      );
+    });
+
+    test('502 del gateway → connection', () {
+      expect(
+        classifyChatError('Exception: HTTP 502: Bad Gateway'),
+        ChatErrorKind.connection,
+      );
+    });
+
+    test('cuerpo que no parsea → connection', () {
+      expect(
+        classifyChatError('FormatException: Unexpected character (at line 1)'),
+        ChatErrorKind.connection,
+      );
+    });
+  });
 }
