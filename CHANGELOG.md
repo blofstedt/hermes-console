@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.14 (4969)
+
+- fix(chat): report a missing session instead of a generic dead end
+
 ## 1.2.13 (4968)
 
 - brand: replace the identity mark with the winged caduceus
