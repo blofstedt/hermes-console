@@ -2541,9 +2541,16 @@ class ActiveChat {
             }
           }
           messagesLoaded = false;
-          throw StateError(
-            'Hermes returned an empty transcript for a non-empty session',
-          );
+          // El REST ya sabía POR QUÉ no hay transcript (p.ej. un 404
+          // `session_not_found`: el Gateway no conoce esa sesión aunque el
+          // Dashboard siga listándola). Tirar ese error y lanzar en su lugar
+          // uno genérico dejaba al usuario con un «Error» sin categoría y sin
+          // salida, y se saltaba la rama 404 que `_fetchMessages` ya tiene.
+          // La causa real manda; el genérico solo cuando no hay ninguna.
+          throw prefetchError ??
+              StateError(
+                'Hermes returned an empty transcript for a non-empty session',
+              );
         }
         if (!messagesLoaded) {
           messagesLoaded = true;
