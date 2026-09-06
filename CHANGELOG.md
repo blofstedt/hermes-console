@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.12 (4967)
+
+- fix(android): use the light launcher icon in the full flavor
+
 ## 1.2.11 (4966)
 
 - ci: publish a release automatically on every push to main
