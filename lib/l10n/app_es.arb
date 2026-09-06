@@ -1401,6 +1401,10 @@
   "bfeCopied": "Copiado al portapapeles",
   "bfeReloadTitle": "Recargar del servidor",
   "bfeReloadBody": "Esto reemplaza el contenido del editor por el del servidor. Se perderán los cambios locales no aplicados.",
+  "bfeDiscardTitle": "¿Descartar los cambios?",
+  "bfeDiscardBody": "No has aplicado tus ediciones al servidor. Si sales ahora se perderán.",
+  "bfeDiscard": "Descartar",
+  "bfeKeepEditing": "Seguir editando",
   "bfeLoadedBytes": "Cargado del servidor ({size} bytes)",
   "@bfeLoadedBytes": {
     "placeholders": {
@@ -4860,6 +4864,7 @@
     "description": "Nota en Ajustes: en instancias locales el bridge se redespliega automaticamente, sin toggle"
   },
   "commonCopy": "Copiar",
+  "commonCopied": "Copiado",
   "qrClipboardInvalid": "El portapapeles no tiene un enlace de emparejado válido.",
   "qrGenTitle": "Generar el QR en tu servidor",
   "qrGenBody": "Elige el sistema del equipo donde funciona Hermes —no el del móvil—, copia su comando y ejecútalo en esa terminal. Cuando aparezca «SCAN THIS QR WITH HERMES CONSOLE», deja el QR visible y vuelve a la cámara.",

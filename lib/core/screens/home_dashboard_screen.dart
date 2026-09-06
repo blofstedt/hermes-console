@@ -36,6 +36,7 @@ import 'companion/mascotas_screen.dart';
 import '../widgets/hermes_spark_mascot.dart';
 import '../widgets/read_only.dart';
 import '../widgets/hermes_ui.dart';
+import '../widgets/motion_entrance.dart';
 import '../widgets/hermes_pill.dart';
 import '../widgets/session_deletion_dialogs.dart';
 import '../widgets/session_title_editor_route.dart';
@@ -874,7 +875,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
   List<Widget> _buildRecentRows(SavedConnection connection, int limit) {
     final rows = <Widget>[];
     final now = DateTime.now();
-    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final activeChats = context
         .findAncestorStateOfType<HermesAppState>()
         ?.activeChats;
@@ -927,11 +927,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
       );
 
       rows.add(
-        FadeSlideIn(
-          delayMs: reduceMotion ? 0 : 30 + (index.clamp(0, 3)) * 20,
-          duration: reduceMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
+        MotionEntrance(
+          delay: Duration(milliseconds: 30 + (index.clamp(0, 3)) * 20),
+          offset: 7,
           child: activeChat == null
               ? recentTile(null)
               : StreamBuilder<ActiveChatEvent>(
@@ -1420,11 +1418,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
                 const SizedBox(height: 8),
                 // La mascota vive únicamente sobre la pista del compositor.
                 // Sin Companion o con teclado, el input recupera ese espacio.
-                FadeSlideIn(
-                  delayMs: reduceMotion ? 0 : 30,
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 220),
+                MotionEntrance(
+                  delay: const Duration(milliseconds: 30),
+                  offset: 7,
                   child: _buildPromptStage(
                     enabled: !isRemoteAndOffline,
                     dimmed: isRemoteAndOffline,

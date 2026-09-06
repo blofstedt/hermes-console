@@ -28,6 +28,50 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
   bool _bridgeAutoLoadDone = false;
   bool _bridgeProbed = false;
 
+  /// Contenido tal y como está en el servidor: se fija al cargar y al aplicar.
+  /// `null` mientras no se haya sincronizado nunca.
+  String? _bridgeBaseline;
+
+  /// True si el buffer difiere de lo que hay en el servidor.
+  ///
+  /// Antes esto se aproximaba con `text.trim().isNotEmpty`, que no es «sucio»
+  /// sino «no vacío»: recargar preguntaba «¿descartar cambios?» aunque el
+  /// buffer fuera idéntico a lo recién leído. Con la baseline la pregunta solo
+  /// sale cuando de verdad hay algo que perder.
+  bool get bridgeIsDirty {
+    final baseline = _bridgeBaseline;
+    if (baseline == null) return bridgeController.text.trim().isNotEmpty;
+    return bridgeController.text != baseline;
+  }
+
+  /// Pide confirmación si hay cambios sin aplicar. Devuelve true si se puede
+  /// continuar (no había nada que perder, o el usuario aceptó descartarlo).
+  /// Pensado para el botón atrás: estos editores escriben en el servidor con un
+  /// paso «aplicar» explícito, así que salir sin aplicar tira el trabajo.
+  Future<bool> confirmDiscardIfDirty() async {
+    if (!bridgeIsDirty) return true;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final s = Strings.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.bfeDiscardTitle),
+        content: Text(s.bfeDiscardBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.bfeKeepEditing),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.bfeDiscard),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   BridgeManager get bridgeManager =>
       _mgr ??= context.findAncestorStateOfType<HermesAppState>()!.bridgeManager;
 
@@ -88,7 +132,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
   }) async {
     if (!bridgeCanRead) return;
     final s = Strings.of(context);
-    if (confirmIfDirty && bridgeController.text.trim().isNotEmpty) {
+    if (confirmIfDirty && bridgeIsDirty) {
       FocusManager.instance.primaryFocus?.unfocus();
       final ok = await showDialog<bool>(
         context: context,
@@ -117,6 +161,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
       final content = (res['content'] ?? '').toString();
       if (!mounted) return;
       bridgeController.text = content;
+      _bridgeBaseline = content;
       if (!silent) {
         final exists = res['exists'] == true;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,9 +206,13 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
       }
 
       setState(() => bridgeApplying = true);
-      final res =
-          await client.write(file: bridgeTarget, content: bridgeController.text);
+      // Se fija el texto ANTES del await: si el usuario sigue escribiendo
+      // mientras se escribe en el servidor, la baseline debe ser lo que
+      // realmente se envió, no lo que haya en el buffer al volver.
+      final applied = bridgeController.text;
+      final res = await client.write(file: bridgeTarget, content: applied);
       if (!mounted) return;
+      _bridgeBaseline = applied;
       final backup = res['backup_id'];
       _snack(backup != null
           ? s.bfeAppliedWithBackup(backup)

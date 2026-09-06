@@ -637,7 +637,15 @@ class _PressableScaleState extends State<PressableScale> {
                 HapticFeedback.selectionClick();
                 widget.onTap!();
               },
-        onLongPress: widget.onLongPress,
+        // La pulsación larga es el gesto que más necesita confirmación: es
+        // invisible y depende del tiempo, así que sin un golpecito no sabes si
+        // ha entrado. Más marcado que el tap para que se distingan entre sí.
+        onLongPress: widget.onLongPress == null
+            ? null
+            : () {
+                HapticFeedback.mediumImpact();
+                widget.onLongPress!();
+              },
         child: AnimatedScale(
           scale: _pressed ? (widget.pressedScale ?? motion.pressedScale) : 1.0,
           duration: Duration(milliseconds: motion.pressDurationMs),
@@ -645,65 +653,6 @@ class _PressableScaleState extends State<PressableScale> {
           child: widget.child,
         ),
       ),
-    );
-  }
-}
-
-/// Aparición suave (fade + leve desplazamiento) para secciones y cards.
-/// [delayMs] permite escalonar la entrada de una lista.
-class FadeSlideIn extends StatefulWidget {
-  final Widget child;
-  final int delayMs;
-  final Duration duration;
-
-  const FadeSlideIn({
-    required this.child,
-    this.delayMs = 0,
-    this.duration = const Duration(milliseconds: 320),
-    super.key,
-  });
-
-  @override
-  State<FadeSlideIn> createState() => _FadeSlideInState();
-}
-
-class _FadeSlideInState extends State<FadeSlideIn>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final CurvedAnimation _curve;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: widget.duration);
-    _curve = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
-    if (widget.delayMs == 0) {
-      _ctrl.forward();
-    } else {
-      Future.delayed(Duration(milliseconds: widget.delayMs), () {
-        if (mounted) _ctrl.forward();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _curve,
-      builder: (_, child) => Opacity(
-        opacity: _curve.value,
-        child: Transform.translate(
-          offset: Offset(0, 7 * (1 - _curve.value)),
-          child: child,
-        ),
-      ),
-      child: widget.child,
     );
   }
 }

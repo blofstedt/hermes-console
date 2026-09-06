@@ -845,6 +845,10 @@
   "bfeCopied": "Copied to clipboard",
   "bfeReloadTitle": "Reload from server",
   "bfeReloadBody": "This replaces the editor content with the server's. Unsaved local changes will be lost.",
+  "bfeDiscardTitle": "Discard changes?",
+  "bfeDiscardBody": "You haven't applied your edits to the server. If you leave now they'll be lost.",
+  "bfeDiscard": "Discard",
+  "bfeKeepEditing": "Keep editing",
   "bfeLoadedBytes": "Loaded from server ({size} bytes)",
   "@bfeLoadedBytes": {
     "placeholders": {
@@ -3979,6 +3983,7 @@
   "setOpenLocalPanel": "Open agent panel",
   "setBridgeLocalAutoFresh": "The Mobile Bridge stays up to date automatically on this device.",
   "commonCopy": "Copy",
+  "commonCopied": "Copied",
   "qrClipboardInvalid": "The clipboard doesn't contain a valid pairing link.",
   "qrGenTitle": "Generate the QR on your server",
   "qrGenBody": "Choose the system of the machine running Hermes—not your phone—then copy its command and run it in that terminal. When “SCAN THIS QR WITH HERMES CONSOLE” appears, leave the QR visible and return to the camera.",
