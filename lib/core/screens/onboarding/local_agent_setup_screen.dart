@@ -23,6 +23,7 @@ import '../instance_edit_screen.dart';
 import 'local_install_screen.dart';
 import 'local_uninstall_screen.dart';
 import '../../widgets/hermes_app_bar.dart';
+import '../../widgets/hermes_snack.dart';
 
 class LocalAgentSetupScreen extends StatefulWidget {
   final ConnectionManager connManager;
@@ -42,7 +43,8 @@ class _LocalAgentSetupScreenState extends State<LocalAgentSetupScreen>
   bool _busy = false;
   bool _starting = false; // arrancando un agente ya instalado y sondeando vida
   bool _probing = false; // sondeando el FS de Termux (instalado vs ausente)
-  bool _installRunning = false; // hay una instalación en curso → ofrecer retomar
+  bool _installRunning =
+      false; // hay una instalación en curso → ofrecer retomar
 
   @override
   void initState() {
@@ -80,7 +82,8 @@ class _LocalAgentSetupScreenState extends State<LocalAgentSetupScreen>
     // mostrando «Comprobando…» para no parpadear, y corregimos el marcador en
     // AMBOS sentidos. Sólo si la sonda es inconcluyente (null: sin
     // allow-external-apps / timeout) conservamos el marcador como mejor pista.
-    final needsProbe = (t == AgentRuntimeStatus.installed ||
+    final needsProbe =
+        (t == AgentRuntimeStatus.installed ||
             t == AgentRuntimeStatus.needsSetup) &&
         !_busy;
     setState(() {
@@ -163,11 +166,11 @@ class _LocalAgentSetupScreenState extends State<LocalAgentSetupScreen>
       // No respondió: probablemente no está instalado. Ofrecer la instalación.
       await _refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).lasStartFailed),
-          duration: const Duration(seconds: 5),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).lasStartFailed,
+        tone: HermesSnackTone.error,
+        duration: const Duration(seconds: 5),
       );
     } finally {
       if (mounted) {

@@ -6,6 +6,7 @@ import '../services/bridge_client.dart';
 import '../services/bridge_manager.dart';
 import 'bridge_config_screen.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Lógica común de un editor respaldado por el Mobile Bridge: autodetección,
 /// autoprovisión del token, leer el contenido real del servidor, recargar y
@@ -164,12 +165,9 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
       _bridgeBaseline = content;
       if (!silent) {
         final exists = res['exists'] == true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(exists
-                ? s.bfeLoadedBytes(res['size'])
-                : s.bfeFileNotOnServer),
-          ),
+        HermesSnack.show(
+          context,
+          exists ? s.bfeLoadedBytes(res['size']) : s.bfeFileNotOnServer,
         );
       }
     } on BridgeException catch (e) {
@@ -200,8 +198,11 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
 
       final lock = context.findAncestorStateOfType<HermesAppState>()?.appLock;
       if (lock != null && lock.enabled) {
-        final ok = await LockScreen.verify(context, lock,
-            reason: bridgeLockReason);
+        final ok = await LockScreen.verify(
+          context,
+          lock,
+          reason: bridgeLockReason,
+        );
         if (!ok || !mounted) return;
       }
 
@@ -214,9 +215,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
       if (!mounted) return;
       _bridgeBaseline = applied;
       final backup = res['backup_id'];
-      _snack(backup != null
-          ? s.bfeAppliedWithBackup(backup)
-          : s.bfeAppliedOk);
+      _snack(backup != null ? s.bfeAppliedWithBackup(backup) : s.bfeAppliedOk);
     } on BridgeException catch (e) {
       _snack(s.bfeBridgeError(e.message));
     } catch (e) {
@@ -237,7 +236,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
           child: SingleChildScrollView(
             child: Text(
               diff.isEmpty ? s.bfeNoDiff : diff,
-              style: const TextStyle( fontSize: 11.5),
+              style: const TextStyle(fontSize: 11.5),
             ),
           ),
         ),
@@ -269,19 +268,24 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
     );
     if (result == null || !mounted) return;
     final override = result.url.trim() == derived ? '' : result.url.trim();
-    await bridgeManager.save(bridgeConnectionId,
-        token: result.token, urlOverride: override);
+    await bridgeManager.save(
+      bridgeConnectionId,
+      token: result.token,
+      urlOverride: override,
+    );
     if (!mounted) return;
     _bridgeAutoLoadDone = false;
     await probeBridge();
     if (mounted) {
-      _snack(bridge.connected
-          ? (bridgeCanWrite
-              ? s.bfeBridgeConnectedWrite
-              : s.bfeBridgeConnectedNoWrite)
-          : bridge.running
-          ? s.bfeBridgeTokenInvalid
-          : s.bfeBridgeConnectFailed(bridge.url));
+      _snack(
+        bridge.connected
+            ? (bridgeCanWrite
+                  ? s.bfeBridgeConnectedWrite
+                  : s.bfeBridgeConnectedNoWrite)
+            : bridge.running
+            ? s.bfeBridgeTokenInvalid
+            : s.bfeBridgeConnectFailed(bridge.url),
+      );
     }
   }
 
@@ -301,10 +305,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
           icon: Icons.cloud_queue,
         );
       case BridgeStatus.authFailed:
-        return (
-          text: s.bfeBannerAuthFailed,
-          icon: Icons.cloud_off_outlined,
-        );
+        return (text: s.bfeBannerAuthFailed, icon: Icons.cloud_off_outlined);
       case BridgeStatus.unreachable:
         final base = s.bfeBannerUnreachable(bridge.url);
         return (
@@ -328,7 +329,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
 
   void _snack(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      HermesSnack.show(context, msg);
     }
   }
 }

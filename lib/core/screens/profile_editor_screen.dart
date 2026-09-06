@@ -20,6 +20,7 @@ import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_bot_face.dart';
 import '../widgets/hermes_ui.dart';
 import 'mission_control_copy.dart';
+import '../widgets/hermes_snack.dart';
 
 typedef ProfileEditorImagePicker = Future<XFile?> Function();
 typedef ProfileEditorImageNormalizer =
@@ -333,14 +334,11 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _text(
-              'Usa una imagen PNG, JPEG, WebP o GIF de hasta 15 MB.',
-              'Use a PNG, JPEG, WebP, or GIF image up to 15 MB.',
-            ),
-          ),
+      HermesSnack.showOn(
+        messenger,
+        _text(
+          'Usa una imagen PNG, JPEG, WebP o GIF de hasta 15 MB.',
+          'Use a PNG, JPEG, WebP, or GIF image up to 15 MB.',
         ),
       );
     } finally {
@@ -415,7 +413,11 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         await _gateway.saveProfileBotMeta(profile: _profileName, title: title);
       }
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(copy.botEditorSaved)));
+      HermesSnack.showOn(
+        messenger,
+        copy.botEditorSaved,
+        tone: HermesSnackTone.success,
+      );
       _allowPop = true;
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -428,7 +430,11 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
           _ => true,
         };
       });
-      messenger.showSnackBar(SnackBar(content: Text(copy.botEditorSaveFailed)));
+      HermesSnack.showOn(
+        messenger,
+        copy.botEditorSaveFailed,
+        tone: HermesSnackTone.error,
+      );
     }
   }
 

@@ -22,6 +22,7 @@ import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/hermes_ui.dart';
 import 'theme_studio_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 @visibleForTesting
 Future<Uint8List> readThemeImportBytes(PlatformFile selected) async {
@@ -323,9 +324,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    HermesSnack.show(context, message);
   }
 
   @override

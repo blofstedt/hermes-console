@@ -11,6 +11,7 @@ import '../services/connection_manager.dart';
 import '../services/diagnostic_bundle_service.dart';
 import '../services/turn_outbox_store.dart';
 import '../theme/app_theme.dart';
+import 'hermes_snack.dart';
 
 class DiagnosticRuntimeInfo {
   final String version;
@@ -228,8 +229,10 @@ class _DiagnosticBundleTileState extends State<DiagnosticBundleTile> {
       if (share == true) await widget.controller.share(bundle);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).diagBundleError)),
+        HermesSnack.show(
+          context,
+          Strings.of(context).diagBundleError,
+          tone: HermesSnackTone.error,
         );
       }
     } finally {

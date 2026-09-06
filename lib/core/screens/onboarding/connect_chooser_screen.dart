@@ -13,6 +13,7 @@ import '../../widgets/hermes_ui.dart';
 import '../instance_edit_screen.dart';
 import '../qr_scan_screen.dart';
 import 'server_setup_screen.dart';
+import '../../widgets/hermes_snack.dart';
 
 class ConnectChooserScreen extends StatefulWidget {
   final ConnectionManager connManager;
@@ -47,9 +48,7 @@ class _ConnectChooserScreenState extends State<ConnectChooserScreen> {
         // antes de abrir el alta precargada.
         setState(() => _detected = link);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).connectNoLinkInClipboard)),
-        );
+        HermesSnack.show(context, Strings.of(context).connectNoLinkInClipboard);
       }
     } catch (_) {
       // El portapapeles puede no estar disponible; sin detección, sin problema.
@@ -119,8 +118,10 @@ class _ConnectChooserScreenState extends State<ConnectChooserScreen> {
       opened = false;
     }
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).connectGuideOpenFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).connectGuideOpenFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }

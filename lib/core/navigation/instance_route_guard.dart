@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../models/connection.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Single gate for routes that only make sense after an instance is active.
 ///
@@ -20,9 +21,7 @@ abstract final class InstanceRouteGuard {
     if (onBlocked != null) {
       onBlocked();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).drawerNeedInstance)),
-      );
+      HermesSnack.show(context, Strings.of(context).drawerNeedInstance);
     }
     return null;
   }

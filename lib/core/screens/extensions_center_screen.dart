@@ -14,6 +14,7 @@ import '../widgets/mcp_provisioning_surface.dart';
 import 'admin_integrations_copy.dart';
 import 'admin_integrations_screen.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 enum _ExtensionsSection { plugins, tools, mcp }
 
@@ -289,9 +290,7 @@ class _ExtensionsCenterScreenState extends State<ExtensionsCenterScreen> {
       await action();
       await _load();
       if (!mounted || success == null) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(success)));
+      HermesSnack.show(context, success, tone: HermesSnackTone.success);
     } catch (error) {
       if (!mounted) return;
       _showMutationFailure(error);
@@ -334,9 +333,7 @@ class _ExtensionsCenterScreenState extends State<ExtensionsCenterScreen> {
       final notice = result.notices.isEmpty
           ? strings.extensionsCenterPluginInstalled
           : strings.extensionsCenterPluginInstalledWithNotice;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(notice)));
+      HermesSnack.show(context, notice);
     } catch (error) {
       if (mounted) _showMutationFailure(error);
     } finally {
@@ -501,9 +498,7 @@ class _ExtensionsCenterScreenState extends State<ExtensionsCenterScreen> {
           : result.authorizationRequired
           ? strings.extensionsCenterMcpTestNeedsAuth
           : strings.extensionsCenterMcpTestFailed;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      HermesSnack.show(context, message);
     } catch (error) {
       if (mounted) _showMutationFailure(error);
     } finally {
@@ -550,8 +545,10 @@ class _ExtensionsCenterScreenState extends State<ExtensionsCenterScreen> {
 
   void _showMutationFailure(Object error) {
     final strings = Strings.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_extensionsMutationFailureText(error, strings))),
+    HermesSnack.show(
+      context,
+      _extensionsMutationFailureText(error, strings),
+      tone: HermesSnackTone.error,
     );
   }
 

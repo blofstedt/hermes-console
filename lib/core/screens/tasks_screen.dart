@@ -25,6 +25,7 @@ import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/kanban_task_detail_surface.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 class TasksScreen extends StatefulWidget {
   final SavedConnection connection;
@@ -528,9 +529,7 @@ class _TasksScreenState extends State<TasksScreen> with WidgetsBindingObserver {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+    HermesSnack.show(context, msg);
   }
 
   String _humanError(Object e) {

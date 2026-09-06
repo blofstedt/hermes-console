@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_ui.dart';
 import 'bridge_editor_mixin.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Editor/visor genérico de un archivo real del servidor vía Mobile Bridge.
 ///
@@ -207,12 +208,10 @@ class _BridgeFileEditorScreenState extends State<BridgeFileEditorScreen>
                                   ClipboardData(text: _ctrl.text),
                                 );
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        Strings.of(context).bfeCopied,
-                                      ),
-                                    ),
+                                  HermesSnack.show(
+                                    context,
+                                    Strings.of(context).bfeCopied,
+                                    tone: HermesSnackTone.success,
                                   );
                                 }
                               },

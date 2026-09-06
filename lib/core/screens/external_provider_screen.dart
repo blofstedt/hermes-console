@@ -26,6 +26,7 @@ import '../utils/api_error.dart';
 import '../utils/transport_privacy.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_ui.dart';
+import '../widgets/hermes_snack.dart';
 
 // ── Provider type ────────────────────────────────────────────────────────────
 
@@ -415,11 +416,10 @@ class _ExternalProviderScreenState extends State<ExternalProviderScreen> {
       if (!mounted) return;
       // No cerramos la pantalla: el usuario puede cambiar de modelo sin salir.
       setState(() => _activeModel = modelId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).extActiveModel(modelId)),
-          duration: const Duration(seconds: 3),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).extActiveModel(modelId),
+        duration: const Duration(seconds: 3),
       );
     } catch (e) {
       if (!mounted) return;

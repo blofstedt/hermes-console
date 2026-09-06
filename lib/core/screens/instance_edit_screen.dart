@@ -26,6 +26,7 @@ import '../widgets/hermes_ui.dart';
 import '../widgets/hermes_app_bar.dart';
 import 'dashboard_setup_screen.dart';
 import 'qr_scan_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 enum _DuplicatePairingAction { cancel, openExisting, updateExisting }
 
@@ -336,9 +337,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
       _kindManuallySet = true;
     });
     if (notify && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).instConnLoaded)),
-      );
+      HermesSnack.show(context, Strings.of(context).instConnLoaded);
       // Auto-test al precargar (QR/pegar/deep link): el usuario ve enseguida si
       // conecta y, si no, la guía por causa (ConnectionDiagnostics), en vez de
       // descubrir el fallo más tarde. No altera el flujo de guardado.
@@ -495,10 +494,9 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
     if (bridgeUrl == null ||
         bridgeUrl.isEmpty ||
         (gatewayToken.isEmpty && bridgeToken.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).ieGatewayCredentialsRequired),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).ieGatewayCredentialsRequired,
       );
       return;
     }
@@ -519,9 +517,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
       _dashUserCtrl.text = result.username;
       _dashPassCtrl.text = result.password;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).ieDashboardConfiguredSave)),
-    );
+    HermesSnack.show(context, Strings.of(context).ieDashboardConfiguredSave);
   }
 
   /// Autoconfigura el login del Dashboard vía bridge SIN teclear nada:
@@ -546,9 +542,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
         bridgeUrl.isEmpty ||
         (gatewayToken.isEmpty && _effectiveBridgeTokenFromForm.isEmpty)) {
       if (!silent && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).ieNeedGatewayFirst)),
-        );
+        HermesSnack.show(context, Strings.of(context).ieNeedGatewayFirst);
       }
       return false;
     }
@@ -557,9 +551,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
       final bToken = await _resolveBridgeToken(bridgeUrl, gatewayToken);
       if (bToken == null || bToken.isEmpty) {
         if (!silent && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(Strings.of(context).ieBridgeNoToken)),
-          );
+          HermesSnack.show(context, Strings.of(context).ieBridgeNoToken);
         }
         return false;
       }
@@ -575,8 +567,10 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
         );
         if (res['ok'] != true) {
           if (!silent && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(Strings.of(context).ieDashPassFailed)),
+            HermesSnack.show(
+              context,
+              Strings.of(context).ieDashPassFailed,
+              tone: HermesSnackTone.error,
             );
           }
           return false;
@@ -597,10 +591,9 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
                 : (host.isEmpty ? '' : '$scheme://$host:9119');
           }
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).ieDashConfigured(finalUser)),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).ieDashConfigured(finalUser),
         );
         return true;
       } finally {
@@ -608,10 +601,10 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
       }
     } catch (e) {
       if (!silent && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).ieDashConfigError(e.toString())),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).ieDashConfigError(e.toString()),
+          tone: HermesSnackTone.error,
         );
       }
       return false;
@@ -1928,9 +1921,11 @@ class _TechnicalDiagnosticsDisclosure extends StatelessWidget {
                   Clipboard.setData(
                     ClipboardData(text: snapshot.report!.toCopyText(s)),
                   );
-                  ScaffoldMessenger.of(
+                  HermesSnack.show(
                     context,
-                  ).showSnackBar(SnackBar(content: Text(s.ieDiagCopied)));
+                    s.ieDiagCopied,
+                    tone: HermesSnackTone.success,
+                  );
                 },
               ),
             ],

@@ -9,6 +9,7 @@
 // Gateway management endpoints: none found in DashboardClient. The /api/skills endpoint
 // is GET-only. Skill management (install/remove) is done via CLI on the server. The
 // detail sheet shows the gateway-managed state and a "copy remove command" button.
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,6 +31,7 @@ import '../widgets/hermes_app_bar.dart';
 import '../widgets/feature_dependency_notice.dart';
 import 'instance_edit_screen.dart';
 import '../../l10n/app_localizations.dart';
+import '../widgets/hermes_snack.dart';
 
 @visibleForTesting
 String resolveSkillsRouteProfile({
@@ -251,7 +253,7 @@ class _SkillsScreenState extends State<SkillsScreen>
 
   void _snack(String m) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+      HermesSnack.show(context, m);
     }
   }
 
@@ -263,9 +265,7 @@ class _SkillsScreenState extends State<SkillsScreen>
     if (!skillsProfileMutationsBlocked(_profile)) return false;
     if (mounted) {
       final str = Strings.of(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(str.sklProfileBlockMsg(_profile))));
+      HermesSnack.show(context, str.sklProfileBlockMsg(_profile));
     }
     return true;
   }
@@ -676,24 +676,7 @@ class _SkillsScreenState extends State<SkillsScreen>
       _installed.map((s) => (s['name'] as String? ?? '').toLowerCase()).toSet();
 
   void _copyToClipboard(String text, String label) {
-    Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              Icons.check,
-              size: 14,
-              color: Theme.of(context).hermes.success,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    unawaited(HermesSnack.copied(context, text, message: label));
   }
 
   Future<void> _openSkillsSearch(String q) async {
@@ -2149,8 +2132,10 @@ class _SkillsCliCatalogPanelState extends State<_SkillsCliCatalogPanel> {
                     ? null
                     : () {
                         Clipboard.setData(ClipboardData(text: _command));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(str.sklCommandCopied)),
+                        HermesSnack.show(
+                          context,
+                          str.sklCommandCopied,
+                          tone: HermesSnackTone.success,
                         );
                       },
               ),

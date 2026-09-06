@@ -46,6 +46,7 @@ import '../widgets/session_context_usage.dart';
 import 'chat_screen.dart';
 import 'cron_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 class SessionDetailScreen extends StatefulWidget {
   final SavedConnection connection;
@@ -350,31 +351,31 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
         connection: widget.connection,
       ).downloadAndSave(artifact, _artifactExporter);
       if (mounted && result == ArtifactSaveResult.saved) {
-        ScaffoldMessenger.of(
+        HermesSnack.show(
           context,
-        ).showSnackBar(SnackBar(content: Text(strings.artifactDownloadSaved)));
+          strings.artifactDownloadSaved,
+          tone: HermesSnackTone.success,
+        );
       }
     } on SessionArtifactDownloadException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              sessionArtifactDownloadMessage(strings, error.failure),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          sessionArtifactDownloadMessage(strings, error.failure),
+          tone: HermesSnackTone.error,
         );
       }
     } on ArtifactExportTooLarge {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.artifactDownloadTooLarge)),
-        );
+        HermesSnack.show(context, strings.artifactDownloadTooLarge);
       }
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(
+        HermesSnack.show(
           context,
-        ).showSnackBar(SnackBar(content: Text(strings.artifactDownloadFailed)));
+          strings.artifactDownloadFailed,
+          tone: HermesSnackTone.error,
+        );
       }
     }
   }
@@ -389,10 +390,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
     final targetIndex = _messageIndexForArtifactSource(source);
     if (targetIndex == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).artifactSourceUnavailable),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).artifactSourceUnavailable,
         );
       }
       return;
@@ -405,10 +405,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
     }
     if (!_messagesScrollController.hasClients) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).artifactSourceUnavailable),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).artifactSourceUnavailable,
         );
       }
       return;
@@ -449,9 +448,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
       if (await alignIfMounted()) return;
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).artifactSourceUnavailable)),
-      );
+      HermesSnack.show(context, Strings.of(context).artifactSourceUnavailable);
     }
   }
 
@@ -488,14 +485,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
         _archiveOptimistic = null;
         _archivePending = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            archived
-                ? Strings.of(context).slArchived
-                : Strings.of(context).slRestored,
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        archived
+            ? Strings.of(context).slArchived
+            : Strings.of(context).slRestored,
+        tone: HermesSnackTone.success,
       );
     } on DashboardHttpException catch (error) {
       if (error.statusCode == 404 || error.statusCode == 405) {
@@ -512,14 +507,12 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
           _archiveOptimistic = null;
           _archivePending = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              archived
-                  ? Strings.of(context).slArchivedLocalOnly
-                  : Strings.of(context).slRestoredLocalOnly,
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          archived
+              ? Strings.of(context).slArchivedLocalOnly
+              : Strings.of(context).slRestoredLocalOnly,
+          tone: HermesSnackTone.success,
         );
         return;
       }
@@ -535,8 +528,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
       _archiveOptimistic = null;
       _archivePending = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).slArchiveSyncFailed)),
+    HermesSnack.show(
+      context,
+      Strings.of(context).slArchiveSyncFailed,
+      tone: HermesSnackTone.error,
     );
   }
 
@@ -569,9 +564,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
     try {
       final fork = await _client.forkSession(_session.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).sesDuplicated(fork.title))),
-      );
+      HermesSnack.show(context, Strings.of(context).sesDuplicated(fork.title));
       Navigator.pushReplacement(
         context,
         MaterialPageRoute<void>(
@@ -581,10 +574,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).sesDuplicateFailed(e.toString())),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).sesDuplicateFailed(e.toString()),
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -668,13 +661,17 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
           );
           break;
         case LinkedSessionDeleteStatus.cronDeleteFailed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(sessionDeletionFailureMessage(s, result))),
+          HermesSnack.show(
+            context,
+            sessionDeletionFailureMessage(s, result),
+            tone: HermesSnackTone.error,
           );
           break;
         case LinkedSessionDeleteStatus.sessionDeleteFailed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(sessionDeletionFailureMessage(s, result))),
+          HermesSnack.show(
+            context,
+            sessionDeletionFailureMessage(s, result),
+            tone: HermesSnackTone.error,
           );
           break;
       }
@@ -702,8 +699,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
       'ID: ${s.id}',
     ];
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).sesCopiedSummary)),
+    HermesSnack.show(
+      context,
+      Strings.of(context).sesCopiedSummary,
+      tone: HermesSnackTone.success,
     );
   }
 
@@ -1195,12 +1194,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
                   onLongPress: copyable
                       ? () {
                           Clipboard.setData(ClipboardData(text: value));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                Strings.of(context).sesCopiedMessage,
-                              ),
-                            ),
+                          HermesSnack.show(
+                            context,
+                            Strings.of(context).sesCopiedMessage,
+                            tone: HermesSnackTone.success,
                           );
                         }
                       : null,
@@ -1293,8 +1290,10 @@ class _MessageTile extends StatelessWidget {
             ? null
             : () {
                 Clipboard.setData(ClipboardData(text: content));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(Strings.of(context).sesCopiedMessage)),
+                HermesSnack.show(
+                  context,
+                  Strings.of(context).sesCopiedMessage,
+                  tone: HermesSnackTone.success,
                 );
               },
         child: Container(

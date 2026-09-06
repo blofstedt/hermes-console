@@ -19,6 +19,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_pill.dart';
 import '../widgets/hermes_ui.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Encaje del modelo en la RAM del dispositivo.
 enum _Fit { fits, tight, tooBig, unknown }
@@ -227,11 +228,11 @@ class LitertStoreScreen extends StatelessWidget {
         '[litert-store] excepción silenciada (se avisa al usuario y se sigue): $e',
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).litertStoreOpenError(m.hfUrl)),
-            duration: const Duration(seconds: 3),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).litertStoreOpenError(m.hfUrl),
+          tone: HermesSnackTone.error,
+          duration: const Duration(seconds: 3),
         );
       }
     }

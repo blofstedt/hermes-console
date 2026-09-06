@@ -13,6 +13,7 @@
 // Limitación honesta: el gateway NO expone listado de runs (405) y los
 // estados viven en memoria del servidor — aquí solo se listan las
 // ejecuciones lanzadas desde esta app (RunRegistry local).
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,6 +43,7 @@ import '../widgets/read_only.dart';
 import '../widgets/run_template_composer.dart';
 import 'lock_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 @visibleForTesting
 bool runTerminalCancelsApproval(String eventType) =>
@@ -184,9 +186,11 @@ class _RunsTabState extends State<RunsTab> with AutomaticKeepAliveClientMixin {
       await _launch(prompt);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.runsLaunchError(e.toString()))));
+        s.runsLaunchError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
     }
   }
 
@@ -201,9 +205,11 @@ class _RunsTabState extends State<RunsTab> with AutomaticKeepAliveClientMixin {
       await _launch(record.prompt);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.runsLaunchError(e.toString()))));
+        s.runsLaunchError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
     }
   }
 
@@ -236,9 +242,7 @@ class _RunsTabState extends State<RunsTab> with AutomaticKeepAliveClientMixin {
     final conn = widget.connection;
     final s = Strings.of(context);
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(s.runsLocalRunning)));
+      HermesSnack.show(context, s.runsLocalRunning);
     }
     final base = conn.derivedBridgeUrl;
     final token = await BridgeClient.provision(base, conn.apiKey.trim());
@@ -281,8 +285,11 @@ class _RunsTabState extends State<RunsTab> with AutomaticKeepAliveClientMixin {
         actions: [
           TextButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: response));
+              // Copiar cerraba el dialogo sin decir nada: el usuario no sabia
+              // si habia copiado. El messenger es el de la pantalla, que sigue
+              // montada tras cerrar el dialogo.
               Navigator.pop(ctx);
+              unawaited(HermesSnack.copied(context, response));
             },
             child: Text(Strings.of(context).commonCopy),
           ),
@@ -941,13 +948,13 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
         command: command,
         sessionId: widget.record.sessionId,
       );
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(s.runsAutoApproved(reason))));
+      HermesSnack.show(context, s.runsAutoApproved(reason));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.runsAutoApproveError(e.toString()))),
+      HermesSnack.show(
+        context,
+        s.runsAutoApproveError(e.toString()),
+        tone: HermesSnackTone.error,
       );
       _pollStatus();
     } finally {
@@ -1065,12 +1072,14 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
         _ => s.runsApprovalSent,
       };
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      HermesSnack.show(context, msg);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.runsResolveError(e.toString()))));
+        s.runsResolveError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
       _pollStatus();
     } finally {
       if (mounted) setState(() => _resolvingApproval = false);
@@ -1156,18 +1165,18 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
       _persist();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.runsStopError(e.toString()))));
+        s.runsStopError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
     }
   }
 
   void _copyOutput() {
     final s = Strings.of(context);
     Clipboard.setData(ClipboardData(text: _output));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(s.runsReplyCopied)));
+    HermesSnack.show(context, s.runsReplyCopied, tone: HermesSnackTone.success);
   }
 
   bool get _isLive => const {
@@ -1252,9 +1261,11 @@ class _RunDetailScreenState extends State<RunDetailScreen> {
                 InkWell(
                   onLongPress: () {
                     Clipboard.setData(ClipboardData(text: widget.record.runId));
-                    ScaffoldMessenger.of(
+                    HermesSnack.show(
                       context,
-                    ).showSnackBar(SnackBar(content: Text(s.runsRunIdCopied)));
+                      s.runsRunIdCopied,
+                      tone: HermesSnackTone.success,
+                    );
                   },
                   child: Text(
                     '${widget.record.runId} · '
@@ -1463,8 +1474,10 @@ class _RunApprovalDecisionBlockState extends State<RunApprovalDecisionBlock> {
 
   void _copyCommand(BuildContext context, String command) {
     Clipboard.setData(ClipboardData(text: command));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).runsCommandCopied)),
+    HermesSnack.show(
+      context,
+      Strings.of(context).runsCommandCopied,
+      tone: HermesSnackTone.success,
     );
   }
 

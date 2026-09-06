@@ -156,6 +156,7 @@ import '../widgets/voice_stage.dart';
 import 'image_viewer_screen.dart';
 import 'lock_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 part 'chat_screen_attachments.dart';
 part 'chat_screen_chrome.dart';
@@ -1259,30 +1260,23 @@ class _ChatScreenState extends State<ChatScreen>
           prepared.state == PreparedTurnState.accepted ||
           prepared.state == PreparedTurnState.running;
       final english = Localizations.localeOf(context).languageCode == 'en';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            ambiguous
-                ? Strings.of(context).chaAmbiguousRestored
-                : acknowledged
-                ? english
-                      ? 'Hermes could not reattach a manager turn that may still be running. Worker tasks stay blocked. Send retries the check; discard only after verifying Hermes because this does not cancel the remote turn.'
-                      : 'Hermes no pudo reanexar un turno del manager que aún podría seguir activo. Las tareas worker quedan bloqueadas. Enviar repite la comprobación; descarta solo tras verificar Hermes porque esto no cancela el turno remoto.'
-                : english
-                ? 'A pending manager turn was recovered. The Room task stays unchanged; discard the manager recovery to continue.'
-                : 'Se recuperó un turno pendiente del manager. La tarea de la Sala sigue intacta; descarta la recuperación del manager para continuar.',
-          ),
-          duration: const Duration(seconds: 8),
-          action: SnackBarAction(
-            label: Strings.of(context).chaDiscardRecovered,
-            onPressed: () => unawaited(
-              _discardRecoveredTurn(
-                prepared,
-                preserveRoomDraft: preserveRoomDraft,
-              ),
-            ),
-          ),
+      HermesSnack.show(
+        context,
+        ambiguous
+            ? Strings.of(context).chaAmbiguousRestored
+            : acknowledged
+            ? english
+                  ? 'Hermes could not reattach a manager turn that may still be running. Worker tasks stay blocked. Send retries the check; discard only after verifying Hermes because this does not cancel the remote turn.'
+                  : 'Hermes no pudo reanexar un turno del manager que aún podría seguir activo. Las tareas worker quedan bloqueadas. Enviar repite la comprobación; descarta solo tras verificar Hermes porque esto no cancela el turno remoto.'
+            : english
+            ? 'A pending manager turn was recovered. The Room task stays unchanged; discard the manager recovery to continue.'
+            : 'Se recuperó un turno pendiente del manager. La tarea de la Sala sigue intacta; descarta la recuperación del manager para continuar.',
+        tone: HermesSnackTone.success,
+        actionLabel: Strings.of(context).chaDiscardRecovered,
+        onAction: () => unawaited(
+          _discardRecoveredTurn(prepared, preserveRoomDraft: preserveRoomDraft),
         ),
+        duration: const Duration(seconds: 8),
       );
     });
   }
@@ -1557,9 +1551,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   void _showOutboxUnavailable() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).chaOutboxUnavailable)),
-    );
+    HermesSnack.show(context, Strings.of(context).chaOutboxUnavailable);
   }
 
   /// Fija una sola vez el perfil propietario de la sesión.
@@ -3188,14 +3180,12 @@ class _ChatScreenState extends State<ChatScreen>
         final rewindRestored = _chat.takeRewindRestoredOnError();
         final dashboardAuthRequired = _chat.takeRewindDashboardAuthRequired();
         if (rewindRestored) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                dashboardAuthRequired
-                    ? Strings.of(context).dashboardAuthLoginRequired
-                    : Strings.of(context).chaEditFailed,
-              ),
-            ),
+          HermesSnack.show(
+            context,
+            dashboardAuthRequired
+                ? Strings.of(context).dashboardAuthLoginRequired
+                : Strings.of(context).chaEditFailed,
+            tone: HermesSnackTone.error,
           );
         }
         break;
@@ -3491,12 +3481,10 @@ class _ChatScreenState extends State<ChatScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(context).chaCantSendApproval(humanizeApiError(e)),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).chaCantSendApproval(humanizeApiError(e)),
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -3537,14 +3525,10 @@ class _ChatScreenState extends State<ChatScreen>
     } catch (error) {
       submittedValue = '';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(
-                context,
-              ).interactiveRespondFailed(humanizeApiError(error)),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).interactiveRespondFailed(humanizeApiError(error)),
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -3567,14 +3551,10 @@ class _ChatScreenState extends State<ChatScreen>
       await _chat.respondToClarifyBatch(entry.key, answers);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(
-                context,
-              ).interactiveRespondFailed(humanizeApiError(error)),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).interactiveRespondFailed(humanizeApiError(error)),
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -3590,9 +3570,7 @@ class _ChatScreenState extends State<ChatScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Could not save Stop safely. Please try again.',
-          ),
+          content: Text('Could not save Stop safely. Please try again.'),
         ),
       );
     }
@@ -4219,9 +4197,7 @@ class _ChatScreenState extends State<ChatScreen>
     // No recargues sobre un stream en curso: clobbearía el parcial que llega.
     if (_chat.isStreaming) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).chaStatusExecuting)),
-        );
+        HermesSnack.show(context, Strings.of(context).chaStatusExecuting);
       }
       return;
     }
@@ -4298,8 +4274,10 @@ class _ChatScreenState extends State<ChatScreen>
           _loading = false;
         });
         if (!isUnpersistedMobileChat) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(Strings.of(context).chaMessagesError)),
+          HermesSnack.show(
+            context,
+            Strings.of(context).chaMessagesError,
+            tone: HermesSnackTone.error,
           );
         }
         return;
@@ -4699,22 +4677,20 @@ class _ChatScreenState extends State<ChatScreen>
           }
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                writeStarted && !_isDeterministicRoomTaskWriteFailure(error)
-                    ? english
-                          ? 'Hermes did not confirm the task. The draft and idempotency key are kept; verify Kanban before retrying.'
-                          : 'Hermes no confirmó la tarea. Se conservan el borrador y la clave idempotente; verifica Kanban antes de reintentar.'
-                    : writeStarted
-                    ? english
-                          ? 'Hermes rejected the task deterministically. No task was written; the draft is kept.'
-                          : 'Hermes rechazó la tarea de forma determinista. No se escribió ninguna tarea; se conserva el borrador.'
-                    : english
-                    ? 'The authoritative Kanban roster could not be refreshed. No task was written.'
-                    : 'No se pudo actualizar el roster autoritativo de Kanban. No se escribió ninguna tarea.',
-              ),
-            ),
+          HermesSnack.show(
+            context,
+            writeStarted && !_isDeterministicRoomTaskWriteFailure(error)
+                ? english
+                      ? 'Hermes did not confirm the task. The draft and idempotency key are kept; verify Kanban before retrying.'
+                      : 'Hermes no confirmó la tarea. Se conservan el borrador y la clave idempotente; verifica Kanban antes de reintentar.'
+                : writeStarted
+                ? english
+                      ? 'Hermes rejected the task deterministically. No task was written; the draft is kept.'
+                      : 'Hermes rechazó la tarea de forma determinista. No se escribió ninguna tarea; se conserva el borrador.'
+                : english
+                ? 'The authoritative Kanban roster could not be refreshed. No task was written.'
+                : 'No se pudo actualizar el roster autoritativo de Kanban. No se escribió ninguna tarea.',
+            tone: HermesSnackTone.error,
           );
         }
         return false;
@@ -4845,8 +4821,10 @@ class _ChatScreenState extends State<ChatScreen>
         return true;
       }
       if (_pendingAttachments.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(str.chaCommandAttachmentsUnsupported)),
+        HermesSnack.show(
+          context,
+          str.chaCommandAttachmentsUnsupported,
+          tone: HermesSnackTone.error,
         );
         return false;
       }
@@ -4878,9 +4856,7 @@ class _ChatScreenState extends State<ChatScreen>
         }
       }
       final unknownName = invocation?.name ?? rawComposerText.substring(1);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(str.chaCommandUnknown(unknownName))),
-      );
+      HermesSnack.show(context, str.chaCommandUnknown(unknownName));
       return false;
     }
     if (widget.connection.readOnly) {
@@ -4946,8 +4922,10 @@ class _ChatScreenState extends State<ChatScreen>
     if (attachments.isNotEmpty &&
         !await AttachmentUploader.validateBatch(attachments)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(str.chaAttachmentValidationFailed)),
+        HermesSnack.show(
+          context,
+          str.chaAttachmentValidationFailed,
+          tone: HermesSnackTone.error,
         );
       }
       return false;
@@ -4983,16 +4961,14 @@ class _ChatScreenState extends State<ChatScreen>
           if (mounted) {
             final tooBig =
                 attachment.sizeBytes > AttachmentUploader.maxTextBytes;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  tooBig
-                      ? Strings.of(context).chaTextFileTooBig(
-                          AttachmentUploader.maxTextBytes ~/ 1024,
-                        )
-                      : Strings.of(context).chaTextFileError,
-                ),
-              ),
+            HermesSnack.show(
+              context,
+              tooBig
+                  ? Strings.of(
+                      context,
+                    ).chaTextFileTooBig(AttachmentUploader.maxTextBytes ~/ 1024)
+                  : Strings.of(context).chaTextFileError,
+              tone: HermesSnackTone.error,
             );
           }
           return false;
@@ -5031,8 +5007,10 @@ class _ChatScreenState extends State<ChatScreen>
         );
         if (reference == null) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(str.chaAttachmentPreparationFailed)),
+            HermesSnack.show(
+              context,
+              str.chaAttachmentPreparationFailed,
+              tone: HermesSnackTone.error,
             );
           }
           return false;
@@ -5425,9 +5403,7 @@ class _ChatScreenState extends State<ChatScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Could not save Stop safely. Please try again.',
-            ),
+            content: Text('Could not save Stop safely. Please try again.'),
           ),
         );
       }
@@ -5588,9 +5564,7 @@ class _ChatScreenState extends State<ChatScreen>
       final message = failure is DashboardAuthException
           ? localizedApiError(Strings.of(context), failure)
           : Strings.of(context).chaEditFailed;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      HermesSnack.show(context, message);
     }
   }
 
@@ -5633,8 +5607,10 @@ class _ChatScreenState extends State<ChatScreen>
       if (mounted) setState(() {});
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).chaRegenerateFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).chaRegenerateFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -5671,13 +5647,17 @@ class _ChatScreenState extends State<ChatScreen>
     try {
       await client.restartGateway();
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(str.chaRestartGatewayDone)),
+      HermesSnack.showOn(
+        messenger,
+        str.chaRestartGatewayDone,
+        tone: HermesSnackTone.success,
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(str.chaRestartGatewayFail(e.toString()))),
+      HermesSnack.showOn(
+        messenger,
+        str.chaRestartGatewayFail(e.toString()),
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -5746,11 +5726,10 @@ class _ChatScreenState extends State<ChatScreen>
       return;
     }
     if (cmd.action == SlashAction.unavailable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).chaCompactUnavailable),
-          duration: const Duration(seconds: 7),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).chaCompactUnavailable,
+        duration: const Duration(seconds: 7),
       );
       return;
     }
@@ -5813,8 +5792,10 @@ class _ChatScreenState extends State<ChatScreen>
       final result = await _chat.executeDesktopSlash(cmd.name, arg: arg);
       if (!mounted) return;
       if (result.accepted != DesktopCommandAcceptance.accepted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).chaCommandFailed)),
+        HermesSnack.show(
+          context,
+          Strings.of(context).chaCommandFailed,
+          tone: HermesSnackTone.error,
         );
         return;
       }
@@ -5833,9 +5814,7 @@ class _ChatScreenState extends State<ChatScreen>
           : notice?.isNotEmpty == true
           ? notice!
           : Strings.of(context).chaCommandAccepted('/${cmd.name}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(feedback), duration: const Duration(seconds: 7)),
-      );
+      HermesSnack.show(context, feedback, duration: const Duration(seconds: 7));
 
       if (submitsDirectedTurn) {
         await _sendMessageOnce(
@@ -5849,13 +5828,13 @@ class _ChatScreenState extends State<ChatScreen>
       final message = error.code == -32601
           ? Strings.of(context).chaCompressionUnsupported
           : Strings.of(context).chaCommandFailed;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), duration: const Duration(seconds: 7)),
-      );
+      HermesSnack.show(context, message, duration: const Duration(seconds: 7));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).chaCommandFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).chaCommandFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -5957,9 +5936,7 @@ class _ChatScreenState extends State<ChatScreen>
         return await _applyModelDirect(matches.first.$1, matches.first.$2);
       } else if (mounted) {
         if (matches.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(Strings.of(context).chaNoMatch(arg))),
-          );
+          HermesSnack.show(context, Strings.of(context).chaNoMatch(arg));
         }
         _showModelSheet();
         return true;
@@ -5990,10 +5967,10 @@ class _ChatScreenState extends State<ChatScreen>
         await _chat.ensureDesktopRuntime();
       } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(str.chaModelChangeFailed(humanizeApiError(error))),
-            ),
+          HermesSnack.show(
+            context,
+            str.chaModelChangeFailed(humanizeApiError(error)),
+            tone: HermesSnackTone.error,
           );
         }
         return false;
@@ -6003,33 +5980,28 @@ class _ChatScreenState extends State<ChatScreen>
 
     if (!_chat.hasDesktopRuntime) {
       if (widget.connection.kind == InstanceKind.localhost) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              str.chaModelChangeFailed(str.chaSessionConfigRequires019),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          str.chaModelChangeFailed(str.chaSessionConfigRequires019),
+          tone: HermesSnackTone.error,
         );
         return false;
       }
       await _stageSessionModel(provider.slug, modelId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(str.chaModelActive(friendlyModelName(modelId))),
-          ),
+        HermesSnack.show(
+          context,
+          str.chaModelActive(friendlyModelName(modelId)),
         );
       }
       return true;
     }
 
     if (!_chat.canConfigureDesktopSession || provider.slug == 'gateway') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            str.chaModelChangeFailed(str.chaSessionModelUnsupported),
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        str.chaModelChangeFailed(str.chaSessionModelUnsupported),
+        tone: HermesSnackTone.error,
       );
       return false;
     }
@@ -6041,10 +6013,10 @@ class _ChatScreenState extends State<ChatScreen>
         providerSlug: provider.slug,
       );
     } on FormatException {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(str.chaModelChangeFailed(str.chaSessionInvalidModel)),
-        ),
+      HermesSnack.show(
+        context,
+        str.chaModelChangeFailed(str.chaSessionInvalidModel),
+        tone: HermesSnackTone.error,
       );
       return false;
     }
@@ -6077,10 +6049,10 @@ class _ChatScreenState extends State<ChatScreen>
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(str.chaModelChangeFailed(humanizeApiError(error))),
-          ),
+        HermesSnack.show(
+          context,
+          str.chaModelChangeFailed(humanizeApiError(error)),
+          tone: HermesSnackTone.error,
         );
       }
       return false;
@@ -6092,8 +6064,10 @@ class _ChatScreenState extends State<ChatScreen>
         final reason = result.status == SessionConfigChangeStatus.timedOut
             ? str.chaSessionReconciling
             : result.failureKind?.name ?? result.status.name;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(str.chaModelChangeFailed(reason))),
+        HermesSnack.show(
+          context,
+          str.chaModelChangeFailed(reason),
+          tone: HermesSnackTone.error,
         );
       }
       return false;
@@ -6105,9 +6079,7 @@ class _ChatScreenState extends State<ChatScreen>
       updateEffectiveDisplay: false,
     );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(str.chaModelActive(friendlyModelName(modelId)))),
-      );
+      HermesSnack.show(context, str.chaModelActive(friendlyModelName(modelId)));
     }
     return true;
   }
@@ -6119,10 +6091,10 @@ class _ChatScreenState extends State<ChatScreen>
         await _chat.ensureDesktopRuntime();
       } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(str.chaModelChangeFailed(humanizeApiError(error))),
-            ),
+          HermesSnack.show(
+            context,
+            str.chaModelChangeFailed(humanizeApiError(error)),
+            tone: HermesSnackTone.error,
           );
         }
         return;
@@ -6138,12 +6110,10 @@ class _ChatScreenState extends State<ChatScreen>
       return;
     }
     if (!_chat.canConfigureDesktopSession) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            str.chaModelChangeFailed(str.chaSessionReasoningUnsupported),
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        str.chaModelChangeFailed(str.chaSessionReasoningUnsupported),
+        tone: HermesSnackTone.error,
       );
       return;
     }
@@ -6151,14 +6121,12 @@ class _ChatScreenState extends State<ChatScreen>
     if (result.status != SessionConfigChangeStatus.accepted &&
         result.status != SessionConfigChangeStatus.confirmed) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              str.chaModelChangeFailed(
-                result.failureKind?.name ?? result.status.name,
-              ),
-            ),
+        HermesSnack.show(
+          context,
+          str.chaModelChangeFailed(
+            result.failureKind?.name ?? result.status.name,
           ),
+          tone: HermesSnackTone.error,
         );
       }
       return;
@@ -6175,10 +6143,10 @@ class _ChatScreenState extends State<ChatScreen>
         await _chat.ensureDesktopRuntime();
       } catch (error) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(str.chaModelChangeFailed(humanizeApiError(error))),
-            ),
+          HermesSnack.show(
+            context,
+            str.chaModelChangeFailed(humanizeApiError(error)),
+            tone: HermesSnackTone.error,
           );
         }
         return;
@@ -6194,12 +6162,10 @@ class _ChatScreenState extends State<ChatScreen>
       return;
     }
     if (!_chat.canConfigureDesktopSession) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            str.chaModelChangeFailed(str.chaSessionFastUnsupported),
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        str.chaModelChangeFailed(str.chaSessionFastUnsupported),
+        tone: HermesSnackTone.error,
       );
       return;
     }
@@ -6207,14 +6173,12 @@ class _ChatScreenState extends State<ChatScreen>
     if (result.status != SessionConfigChangeStatus.accepted &&
         result.status != SessionConfigChangeStatus.confirmed) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              str.chaModelChangeFailed(
-                result.failureKind?.name ?? result.status.name,
-              ),
-            ),
+        HermesSnack.show(
+          context,
+          str.chaModelChangeFailed(
+            result.failureKind?.name ?? result.status.name,
           ),
+          tone: HermesSnackTone.error,
         );
       }
       return;
@@ -6533,31 +6497,31 @@ class _ChatScreenState extends State<ChatScreen>
         connection: widget.connection,
       ).downloadAndSave(artifact, _artifactExporter);
       if (mounted && result == ArtifactSaveResult.saved) {
-        ScaffoldMessenger.of(
+        HermesSnack.show(
           context,
-        ).showSnackBar(SnackBar(content: Text(strings.artifactDownloadSaved)));
+          strings.artifactDownloadSaved,
+          tone: HermesSnackTone.success,
+        );
       }
     } on SessionArtifactDownloadException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              sessionArtifactDownloadMessage(strings, error.failure),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          sessionArtifactDownloadMessage(strings, error.failure),
+          tone: HermesSnackTone.error,
         );
       }
     } on ArtifactExportTooLarge {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(strings.artifactDownloadTooLarge)),
-        );
+        HermesSnack.show(context, strings.artifactDownloadTooLarge);
       }
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(
+        HermesSnack.show(
           context,
-        ).showSnackBar(SnackBar(content: Text(strings.artifactDownloadFailed)));
+          strings.artifactDownloadFailed,
+          tone: HermesSnackTone.error,
+        );
       }
     }
   }
@@ -6569,10 +6533,9 @@ class _ChatScreenState extends State<ChatScreen>
         : _currentRenderProjection.nearestRenderableMessageIndex(sourceIndex);
     if (messageIndex == null || !_scrollController.hasClients) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).artifactSourceUnavailable),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).artifactSourceUnavailable,
         );
       }
       return;
@@ -6612,9 +6575,7 @@ class _ChatScreenState extends State<ChatScreen>
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).artifactSourceUnavailable)),
-      );
+      HermesSnack.show(context, Strings.of(context).artifactSourceUnavailable);
     }
   }
 
@@ -6654,8 +6615,10 @@ class _ChatScreenState extends State<ChatScreen>
       childSession = await client.getSession(childSessionId);
     } catch (_) {
       if (!_disposed && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).subagentOpenFailed)),
+        HermesSnack.show(
+          context,
+          Strings.of(context).subagentOpenFailed,
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -6710,22 +6673,21 @@ class _ChatScreenState extends State<ChatScreen>
     try {
       final found = await _chat.interruptSubagent(current);
       if (_disposed || !mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            found
-                ? Strings.of(context).subagentInterruptRequested
-                : Strings.of(context).subagentInterruptNotFound,
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        found
+            ? Strings.of(context).subagentInterruptRequested
+            : Strings.of(context).subagentInterruptNotFound,
       );
     } on StateError {
       // Otro toque/evento ganó la carrera. El estado visible ya se actualiza
       // desde ActiveChat; no mostrar un error falso al usuario.
     } catch (_) {
       if (_disposed || !mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).subagentInterruptFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).subagentInterruptFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -6854,13 +6816,17 @@ class _ChatScreenState extends State<ChatScreen>
           );
           break;
         case LinkedSessionDeleteStatus.cronDeleteFailed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(sessionDeletionFailureMessage(s, result))),
+          HermesSnack.show(
+            context,
+            sessionDeletionFailureMessage(s, result),
+            tone: HermesSnackTone.error,
           );
           break;
         case LinkedSessionDeleteStatus.sessionDeleteFailed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(sessionDeletionFailureMessage(s, result))),
+          HermesSnack.show(
+            context,
+            sessionDeletionFailureMessage(s, result),
+            tone: HermesSnackTone.error,
           );
           break;
       }
@@ -6988,10 +6954,10 @@ class _ChatScreenState extends State<ChatScreen>
     final bytes = content.data;
     if (bytes == null || bytes.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).chaAttachmentPreparationFailed),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).chaAttachmentPreparationFailed,
+          tone: HermesSnackTone.error,
         );
       }
       return;
@@ -7011,10 +6977,10 @@ class _ChatScreenState extends State<ChatScreen>
             ) !=
             null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).chaAttachmentPreparationFailed),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).chaAttachmentPreparationFailed,
+          tone: HermesSnackTone.error,
         );
       }
       return;
@@ -7055,10 +7021,10 @@ class _ChatScreenState extends State<ChatScreen>
       _scheduleDraftSave();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).chaAttachmentPreparationFailed),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).chaAttachmentPreparationFailed,
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -7084,14 +7050,11 @@ class _ChatScreenState extends State<ChatScreen>
       final remaining = _maxPendingImages - currentImages;
       if (remaining <= 0) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                Strings.of(
-                  context,
-                ).chaAttachmentImageLimitReached(_maxPendingImages),
-              ),
-            ),
+          HermesSnack.show(
+            context,
+            Strings.of(
+              context,
+            ).chaAttachmentImageLimitReached(_maxPendingImages),
           );
         }
         return;
@@ -7196,40 +7159,35 @@ class _ChatScreenState extends State<ChatScreen>
       }
       // Si el lote mezclaba imágenes válidas y demasiado grandes, conserva las
       // válidas y avisa una sola vez por las rechazadas.
-      if (rejectedForItemLimit) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(
-                context,
-              ).chaImageTooBig(AttachmentUploader.maxBytes ~/ (1024 * 1024)),
-            ),
+      // Un lote puede fallar por varios motivos a la vez. Un aviso por motivo
+      // se encolaba (segundos de banner) y, al pasar a «el ultimo gana», se
+      // perdian todos menos uno: se juntan en uno solo.
+      final rejections = <String>[
+        if (rejectedForItemLimit)
+          Strings.of(
+            context,
+          ).chaImageTooBig(AttachmentUploader.maxBytes ~/ (1024 * 1024)),
+        if (rejectedForBatchLimit)
+          Strings.of(context).chaAttachmentBatchTooBig(
+            _attachmentLimitLabel(AttachmentUploader.maxBatchBytes),
           ),
-        );
-      }
-      if (rejectedForBatchLimit && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(context).chaAttachmentBatchTooBig(
-                _attachmentLimitLabel(AttachmentUploader.maxBatchBytes),
-              ),
-            ),
-          ),
-        );
-      }
-      if (rejectedForPersistence && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).chaAttachmentPreparationFailed),
-          ),
+        if (rejectedForPersistence)
+          Strings.of(context).chaAttachmentPreparationFailed,
+      ];
+      if (rejections.isNotEmpty) {
+        HermesSnack.show(
+          context,
+          rejections.join(' '),
+          tone: HermesSnackTone.error,
         );
       }
     } catch (_) {
       await _deleteUncommittedAttachmentCopies(drafts);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).chaGalleryError)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).chaGalleryError,
+        tone: HermesSnackTone.error,
       );
     } finally {
       _imagePickerOpen = false;
@@ -7331,39 +7289,33 @@ class _ChatScreenState extends State<ChatScreen>
         _scheduleDraftSave();
         drafts.clear();
       }
-      if (rejectedItemLimitLabel != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(context).chaFileTooBig(rejectedItemLimitLabel),
-            ),
+      // Ver el comentario de la ruta de imagenes: un solo aviso con todos los
+      // motivos, no uno por motivo.
+      final rejections = <String>[
+        if (rejectedItemLimitLabel != null)
+          Strings.of(context).chaFileTooBig(rejectedItemLimitLabel),
+        if (rejectedForBatchLimit)
+          Strings.of(context).chaAttachmentBatchTooBig(
+            _attachmentLimitLabel(AttachmentUploader.maxBatchBytes),
           ),
-        );
-      }
-      if (rejectedForBatchLimit && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(context).chaAttachmentBatchTooBig(
-                _attachmentLimitLabel(AttachmentUploader.maxBatchBytes),
-              ),
-            ),
-          ),
-        );
-      }
-      if (rejectedForPersistence && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).chaAttachmentPreparationFailed),
-          ),
+        if (rejectedForPersistence)
+          Strings.of(context).chaAttachmentPreparationFailed,
+      ];
+      if (rejections.isNotEmpty) {
+        HermesSnack.show(
+          context,
+          rejections.join(' '),
+          tone: HermesSnackTone.error,
         );
       }
     } catch (error) {
       await _deleteUncommittedAttachmentCopies(drafts);
       if (!mounted) return;
       debugPrint('[attachment] document picker failed (${error.runtimeType})');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).chaFilesError)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).chaFilesError,
+        tone: HermesSnackTone.error,
       );
     } finally {
       _documentPickerOpen = false;
@@ -7894,20 +7846,16 @@ class _ChatScreenState extends State<ChatScreen>
       return;
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 8),
-        content: Text(
-          Strings.of(context).bridgeUpdateAvailable(
-            check.installed ?? '?',
-            check.available ?? BridgeUpdateService.packagedVersion,
-          ),
-        ),
-        action: SnackBarAction(
-          label: Strings.of(context).commonUpdate,
-          onPressed: _doBridgeUpdate,
-        ),
+    HermesSnack.show(
+      context,
+      Strings.of(context).bridgeUpdateAvailable(
+        check.installed ?? '?',
+        check.available ?? BridgeUpdateService.packagedVersion,
       ),
+      tone: HermesSnackTone.success,
+      actionLabel: Strings.of(context).commonUpdate,
+      onAction: _doBridgeUpdate,
+      duration: const Duration(seconds: 8),
     );
   }
 
@@ -7916,9 +7864,7 @@ class _ChatScreenState extends State<ChatScreen>
   Future<void> _doBridgeUpdate({bool silent = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     if (!silent) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(Strings.of(context).bridgeUpdating)),
-      );
+      HermesSnack.showOn(messenger, Strings.of(context).bridgeUpdating);
     }
     final res = await BridgeUpdateService.update(
       widget.connection,
@@ -8009,9 +7955,7 @@ class _ChatScreenState extends State<ChatScreen>
       if (catalog != null) {
         _modelSource = _ModelSource.bridge;
         _modelOptionsFuture = Future.value(catalog);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(res.detail)));
+        HermesSnack.show(context, res.detail);
         _showModelSheet();
         return;
       }
@@ -8062,14 +8006,10 @@ class _ChatScreenState extends State<ChatScreen>
                       if (ok) {
                         nav.pop();
                         _modelOptionsFuture = null;
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(strConnected)),
-                        );
+                        HermesSnack.showOn(messenger, strConnected);
                         _showModelSheet();
                       } else {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(strNotDetected)),
-                        );
+                        HermesSnack.showOn(messenger, strNotDetected);
                       }
                     },
               child: busy
@@ -8857,12 +8797,10 @@ class _ChatScreenState extends State<ChatScreen>
               _commitPendingDictationPartial();
               _resetDictation();
               _materializeDictation();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    Strings.of(context).chaDictationError(humanizeApiError(e)),
-                  ),
-                ),
+              HermesSnack.show(
+                context,
+                Strings.of(context).chaDictationError(humanizeApiError(e)),
+                tone: HermesSnackTone.error,
               );
             }
             if (!mounted) _resetDictation();
@@ -8934,9 +8872,7 @@ class _ChatScreenState extends State<ChatScreen>
         _commitPendingDictationPartial();
         _resetDictation();
         _materializeDictation();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Strings.of(context).chaVoiceNotRecognized)),
-        );
+        HermesSnack.show(context, Strings.of(context).chaVoiceNotRecognized);
       }
     });
     await voice.stopDictation();
@@ -9157,14 +9093,12 @@ class _ChatScreenState extends State<ChatScreen>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              Strings.of(
-                context,
-              ).chaVoiceError(localizedVoiceError(Strings.of(context), e)),
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(
+            context,
+          ).chaVoiceError(localizedVoiceError(Strings.of(context), e)),
+          tone: HermesSnackTone.error,
         );
       }
     }

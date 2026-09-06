@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_ui.dart';
 import 'lock_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Centro de seguridad: bloqueo local accionable (PIN/biometría), gestión de
 /// credenciales y el modelo de seguridad de la app. Las afirmaciones
@@ -103,9 +104,11 @@ class _SecurityInfoScreenState extends State<SecurityInfoScreen> {
     if (pin == null) return;
     await lock.setPin(pin);
     if (!mounted) return;
-    ScaffoldMessenger.of(
+    HermesSnack.show(
       context,
-    ).showSnackBar(SnackBar(content: Text(Strings.of(context).secPinUpdated)));
+      Strings.of(context).secPinUpdated,
+      tone: HermesSnackTone.success,
+    );
   }
 
   Future<void> _toggleBiometric(bool value) async {
@@ -157,9 +160,11 @@ class _SecurityInfoScreenState extends State<SecurityInfoScreen> {
     if (confirm != true || !mounted) return;
     await widget.connManager.wipeAllApiKeys();
     if (!mounted) return;
-    ScaffoldMessenger.of(
+    HermesSnack.show(
       context,
-    ).showSnackBar(SnackBar(content: Text(Strings.of(context).secKeysWiped)));
+      Strings.of(context).secKeysWiped,
+      tone: HermesSnackTone.success,
+    );
   }
 
   SavedConnection? _activeConnection() {

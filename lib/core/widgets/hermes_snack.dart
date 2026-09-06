@@ -27,28 +27,16 @@ enum HermesSnackTone {
 /// un muro. Aquí siempre se retira el aviso vigente antes de mostrar el
 /// siguiente, así que el último gana y la UI no se queda atascada.
 ///
+/// Un mensaje repetido SÍ se vuelve a mostrar: si el usuario repite la acción,
+/// merece ver la respuesta otra vez. Aquí hubo un anti-rebote por tiempo que
+/// se quitó justamente por eso — tragaba avisos legítimos.
+///
 /// Además unifica lo que antes cada sitio decidía por su cuenta: duración según
 /// gravedad (una confirmación no necesita los 4 s de un error), háptica de
 /// confirmación, icono de tono, y — en los errores — una acción «Copiar» para
 /// que el texto se pueda pegar en un issue.
 class HermesSnack {
   const HermesSnack._();
-
-  /// Ventana anti-rebote: dos avisos idénticos más juntos que esto se
-  /// consideran el mismo evento (doble callback, doble toque) y el segundo se
-  /// ignora, en vez de reiniciar el banner y hacerlo parpadear.
-  static const Duration _dedupeWindow = Duration(milliseconds: 700);
-
-  static String? _lastMessage;
-  static DateTime? _lastShownAt;
-
-  /// Solo para tests: olvida el último aviso para que el anti-rebote no filtre
-  /// entre casos.
-  @visibleForTesting
-  static void resetDedupe() {
-    _lastMessage = null;
-    _lastShownAt = null;
-  }
 
   static Duration _durationFor(HermesSnackTone tone) => switch (tone) {
     // Una confirmación se lee de un vistazo; alargarla solo tapa contenido.
@@ -149,16 +137,6 @@ class HermesSnack {
     required Duration? duration,
     required bool haptic,
   }) {
-    final now = DateTime.now();
-    final last = _lastShownAt;
-    if (_lastMessage == message &&
-        last != null &&
-        now.difference(last) < _dedupeWindow) {
-      return;
-    }
-    _lastMessage = message;
-    _lastShownAt = now;
-
     if (haptic) _hapticFor(tone);
 
     final colors = Theme.of(context).hermes;
@@ -167,8 +145,15 @@ class HermesSnack {
     String? label = actionLabel;
     VoidCallback? action = onAction;
     if (label == null && action == null && tone == HermesSnackTone.error) {
-      label = Strings.of(context).commonCopy;
-      action = () => unawaitedCopy(message);
+      // `showOn` puede recibir el contexto del propio ScaffoldMessenger, que
+      // queda POR ENCIMA de Localizations: ahi `Strings.of` revienta. Se
+      // resuelve de forma tolerante y, sin traducciones a mano, simplemente no
+      // se ofrece la accion (el aviso se muestra igual).
+      final strings = Localizations.of<Strings>(context, Strings);
+      if (strings != null) {
+        label = strings.commonCopy;
+        action = () => unawaitedCopy(message);
+      }
     }
 
     // El aviso vigente se retira sin animación de salida: encolarlos era el
@@ -210,7 +195,10 @@ class HermesSnack {
     String? message,
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
-    final confirmation = message ?? Strings.of(context).commonCopied;
+    final confirmation =
+        message ??
+        Localizations.of<Strings>(context, Strings)?.commonCopied ??
+        'Copied';
     await Clipboard.setData(ClipboardData(text: text));
     if (messenger == null) return;
     showOn(messenger, confirmation, tone: HermesSnackTone.success);

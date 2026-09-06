@@ -29,6 +29,7 @@ import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/server_voice_control_surface.dart';
 import '../widgets/voice_disclosure_dialog.dart';
+import '../widgets/hermes_snack.dart';
 
 typedef KokoroDiscoveryCallback =
     Future<KokoroTtsDiscovery> Function({
@@ -1007,8 +1008,7 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
     return (_customHeaderCtrl.text.trim(), _customPrefixCtrl.text.trim());
   }
 
-  void _snack(String m) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  void _snack(String m) => HermesSnack.show(context, m);
 
   Future<void> _disposePreviewEngine(TtsEngine? engine) async {
     if (engine == null) return;

@@ -12,6 +12,7 @@ import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/hermes_ui.dart';
 import '../widgets/read_only.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Editor de la receta del Mixture of Agents (spec 029).
 ///
@@ -166,9 +167,11 @@ class _MoaRecipeScreenState extends State<MoaRecipeScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.moaSaveError(e.toString()))));
+        s.moaSaveError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
       // Revierte a lo persistido: sin estado fantasma.
       await _load();
     } finally {
@@ -201,14 +204,14 @@ class _MoaRecipeScreenState extends State<MoaRecipeScreen> {
         scope: 'main',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(s.moaActivated)));
+      HermesSnack.show(context, s.moaActivated, tone: HermesSnackTone.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.moaSaveError(e.toString()))));
+        s.moaSaveError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
     }
   }
 

@@ -13,6 +13,7 @@ import '../../widgets/hermes_app_bar.dart';
 import '../../widgets/hermes_ui.dart';
 import '../instance_edit_screen.dart';
 import '../qr_scan_screen.dart';
+import '../../widgets/hermes_snack.dart';
 
 enum ServerSetupMode { prepare, showQr }
 
@@ -43,7 +44,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
   bool _detailsExpanded = false;
   void _copy(String text, String toast) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(toast)));
+    HermesSnack.show(context, toast);
   }
 
   void _copyCommand(String text, String toast) {
@@ -75,9 +76,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     final link = PairingLink.tryParse(data?.text?.trim() ?? '');
     if (!mounted) return;
     if (link == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).connectNoLinkInClipboard)),
-      );
+      HermesSnack.show(context, Strings.of(context).connectNoLinkInClipboard);
       return;
     }
     final saved = await Navigator.of(context).push<bool>(
