@@ -37,6 +37,7 @@ import 'voice_settings_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/diagnostic_bundle_tile.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Estado del único canal que consume Hermes Console.
 ///
@@ -1109,19 +1110,20 @@ class _HistoryCleanupSectionState extends State<HistoryCleanupSection> {
           scope: HistoryCleanupScope.normalConversations,
         );
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_summaryMessage(Strings.of(context), result)),
-          duration: Duration(seconds: result.allSucceeded ? 3 : 5),
-        ),
+      HermesSnack.show(
+        context,
+        _summaryMessage(Strings.of(context), result),
+        duration: Duration(seconds: result.allSucceeded ? 3 : 5),
       );
     } catch (e) {
       // Las fuentes remotas/locales se aíslan dentro del coordinador. Este
       // fallback solo cubre fallos inesperados al preparar la operación.
       if (!mounted) return;
       final s = Strings.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(s.setClearError(localizedApiError(s, e)))),
+      HermesSnack.show(
+        context,
+        s.setClearError(localizedApiError(s, e)),
+        tone: HermesSnackTone.error,
       );
     } finally {
       client?.close();
@@ -1152,9 +1154,7 @@ class _HistoryCleanupSectionState extends State<HistoryCleanupSection> {
       if (!mounted) return;
       final s = Strings.of(context);
       if (preview.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(s.crnCleanupEmpty)));
+        HermesSnack.show(context, s.crnCleanupEmpty);
         return;
       }
 
@@ -1196,9 +1196,7 @@ class _HistoryCleanupSectionState extends State<HistoryCleanupSection> {
       final message = result.preserved == 0
           ? s.crnCleanupDone(result.deleted)
           : s.crnCleanupPartial(result.deleted, result.preserved);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      HermesSnack.show(context, message);
     } catch (error) {
       if (!mounted) return;
       final s = Strings.of(context);
@@ -1376,10 +1374,10 @@ class _OrphanDataTileState extends State<_OrphanDataTile> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).secCleanFailed(e.toString())),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).secCleanFailed(e.toString()),
+        tone: HermesSnackTone.error,
       );
     } finally {
       if (mounted) setState(() => _cleaning = false);
@@ -1670,9 +1668,7 @@ class _MaintenanceSectionState extends State<_MaintenanceSection> {
     final lock = context.findAncestorStateOfType<HermesAppState>()?.appLock;
     if (lock != null && lock.enabled) return;
     _hermesAutoTriggered = true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).setUpdatingHermesAuto)),
-    );
+    HermesSnack.show(context, Strings.of(context).setUpdatingHermesAuto);
     await _applyUpdate(auto: true);
   }
 
@@ -1928,7 +1924,7 @@ class _MaintenanceSectionState extends State<_MaintenanceSection> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    HermesSnack.show(context, msg);
   }
 
   // ── Diagnóstico derivado de /api/status ──────────────────────────────

@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/hermes_ui.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Mobile projection of Hermes Desktop's native rollback timeline.
 ///
@@ -114,8 +115,10 @@ class _RecoveryCenterScreenState extends State<RecoveryCenterScreen> {
     if (restored != true || !mounted) return;
     await _load();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(Strings.of(context).recoveryCenterRestored)),
+    HermesSnack.show(
+      context,
+      Strings.of(context).recoveryCenterRestored,
+      tone: HermesSnackTone.success,
     );
   }
 

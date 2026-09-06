@@ -6,6 +6,7 @@ import '../services/bridge_client.dart';
 import '../services/bridge_manager.dart';
 import 'bridge_config_screen.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Lógica común de un editor respaldado por el Mobile Bridge: autodetección,
 /// autoprovisión del token, leer el contenido real del servidor, recargar y
@@ -27,6 +28,50 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
   bool bridgeLoading = false;
   bool _bridgeAutoLoadDone = false;
   bool _bridgeProbed = false;
+
+  /// Contenido tal y como está en el servidor: se fija al cargar y al aplicar.
+  /// `null` mientras no se haya sincronizado nunca.
+  String? _bridgeBaseline;
+
+  /// True si el buffer difiere de lo que hay en el servidor.
+  ///
+  /// Antes esto se aproximaba con `text.trim().isNotEmpty`, que no es «sucio»
+  /// sino «no vacío»: recargar preguntaba «¿descartar cambios?» aunque el
+  /// buffer fuera idéntico a lo recién leído. Con la baseline la pregunta solo
+  /// sale cuando de verdad hay algo que perder.
+  bool get bridgeIsDirty {
+    final baseline = _bridgeBaseline;
+    if (baseline == null) return bridgeController.text.trim().isNotEmpty;
+    return bridgeController.text != baseline;
+  }
+
+  /// Pide confirmación si hay cambios sin aplicar. Devuelve true si se puede
+  /// continuar (no había nada que perder, o el usuario aceptó descartarlo).
+  /// Pensado para el botón atrás: estos editores escriben en el servidor con un
+  /// paso «aplicar» explícito, así que salir sin aplicar tira el trabajo.
+  Future<bool> confirmDiscardIfDirty() async {
+    if (!bridgeIsDirty) return true;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final s = Strings.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.bfeDiscardTitle),
+        content: Text(s.bfeDiscardBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.bfeKeepEditing),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.bfeDiscard),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
 
   BridgeManager get bridgeManager =>
       _mgr ??= context.findAncestorStateOfType<HermesAppState>()!.bridgeManager;
@@ -88,7 +133,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
   }) async {
     if (!bridgeCanRead) return;
     final s = Strings.of(context);
-    if (confirmIfDirty && bridgeController.text.trim().isNotEmpty) {
+    if (confirmIfDirty && bridgeIsDirty) {
       FocusManager.instance.primaryFocus?.unfocus();
       final ok = await showDialog<bool>(
         context: context,
@@ -117,14 +162,12 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
       final content = (res['content'] ?? '').toString();
       if (!mounted) return;
       bridgeController.text = content;
+      _bridgeBaseline = content;
       if (!silent) {
         final exists = res['exists'] == true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(exists
-                ? s.bfeLoadedBytes(res['size'])
-                : s.bfeFileNotOnServer),
-          ),
+        HermesSnack.show(
+          context,
+          exists ? s.bfeLoadedBytes(res['size']) : s.bfeFileNotOnServer,
         );
       }
     } on BridgeException catch (e) {
@@ -155,19 +198,24 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
 
       final lock = context.findAncestorStateOfType<HermesAppState>()?.appLock;
       if (lock != null && lock.enabled) {
-        final ok = await LockScreen.verify(context, lock,
-            reason: bridgeLockReason);
+        final ok = await LockScreen.verify(
+          context,
+          lock,
+          reason: bridgeLockReason,
+        );
         if (!ok || !mounted) return;
       }
 
       setState(() => bridgeApplying = true);
-      final res =
-          await client.write(file: bridgeTarget, content: bridgeController.text);
+      // Se fija el texto ANTES del await: si el usuario sigue escribiendo
+      // mientras se escribe en el servidor, la baseline debe ser lo que
+      // realmente se envió, no lo que haya en el buffer al volver.
+      final applied = bridgeController.text;
+      final res = await client.write(file: bridgeTarget, content: applied);
       if (!mounted) return;
+      _bridgeBaseline = applied;
       final backup = res['backup_id'];
-      _snack(backup != null
-          ? s.bfeAppliedWithBackup(backup)
-          : s.bfeAppliedOk);
+      _snack(backup != null ? s.bfeAppliedWithBackup(backup) : s.bfeAppliedOk);
     } on BridgeException catch (e) {
       _snack(s.bfeBridgeError(e.message));
     } catch (e) {
@@ -188,7 +236,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
           child: SingleChildScrollView(
             child: Text(
               diff.isEmpty ? s.bfeNoDiff : diff,
-              style: const TextStyle( fontSize: 11.5),
+              style: const TextStyle(fontSize: 11.5),
             ),
           ),
         ),
@@ -220,19 +268,24 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
     );
     if (result == null || !mounted) return;
     final override = result.url.trim() == derived ? '' : result.url.trim();
-    await bridgeManager.save(bridgeConnectionId,
-        token: result.token, urlOverride: override);
+    await bridgeManager.save(
+      bridgeConnectionId,
+      token: result.token,
+      urlOverride: override,
+    );
     if (!mounted) return;
     _bridgeAutoLoadDone = false;
     await probeBridge();
     if (mounted) {
-      _snack(bridge.connected
-          ? (bridgeCanWrite
-              ? s.bfeBridgeConnectedWrite
-              : s.bfeBridgeConnectedNoWrite)
-          : bridge.running
-          ? s.bfeBridgeTokenInvalid
-          : s.bfeBridgeConnectFailed(bridge.url));
+      _snack(
+        bridge.connected
+            ? (bridgeCanWrite
+                  ? s.bfeBridgeConnectedWrite
+                  : s.bfeBridgeConnectedNoWrite)
+            : bridge.running
+            ? s.bfeBridgeTokenInvalid
+            : s.bfeBridgeConnectFailed(bridge.url),
+      );
     }
   }
 
@@ -252,10 +305,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
           icon: Icons.cloud_queue,
         );
       case BridgeStatus.authFailed:
-        return (
-          text: s.bfeBannerAuthFailed,
-          icon: Icons.cloud_off_outlined,
-        );
+        return (text: s.bfeBannerAuthFailed, icon: Icons.cloud_off_outlined);
       case BridgeStatus.unreachable:
         final base = s.bfeBannerUnreachable(bridge.url);
         return (
@@ -279,7 +329,7 @@ mixin BridgeEditorMixin<T extends StatefulWidget> on State<T> {
 
   void _snack(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      HermesSnack.show(context, msg);
     }
   }
 }

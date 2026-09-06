@@ -8,6 +8,7 @@ import '../services/bridge_update_service.dart';
 import '../services/bridge_version.dart';
 import '../services/connection_manager.dart';
 import 'platform_setup_commands.dart';
+import 'hermes_snack.dart';
 
 /// Aviso de compatibilidad mínima: si el bridge remoto es más viejo que el asset
 /// de esta APK, ofrece resolver e instalar la mejor release validada.
@@ -131,8 +132,10 @@ class BridgeUpdateBanner extends StatelessWidget {
 
     if (res.ok) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).bridgeUpdated)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).bridgeUpdated,
+        tone: HermesSnackTone.success,
       );
       await onUpdated();
       return;
@@ -176,13 +179,13 @@ class BridgeUpdateBanner extends StatelessWidget {
                       if (ok) {
                         nav.pop();
                         await onUpdated();
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(strUpdated)),
+                        HermesSnack.showOn(
+                          messenger,
+                          strUpdated,
+                          tone: HermesSnackTone.success,
                         );
                       } else {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(strStillOld)),
-                        );
+                        HermesSnack.showOn(messenger, strStillOld);
                       }
                     },
               child: busy

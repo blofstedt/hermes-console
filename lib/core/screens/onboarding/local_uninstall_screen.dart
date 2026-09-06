@@ -20,6 +20,7 @@ import '../../widgets/hermes_status_indicator.dart';
 import '../../widgets/hermes_ui.dart';
 import '../../widgets/hermes_app_bar.dart';
 import '../../../main.dart';
+import '../../widgets/hermes_snack.dart';
 
 class _Stage {
   final String label;
@@ -81,14 +82,16 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
   bool _progressSeen = false;
   bool _bootstrapTried = false;
   bool _bootstrapping = false;
+
   /// Servicio de notificaciones locales, cacheado del árbol mientras está
   /// montado para avisar del fin aunque el usuario haya salido de la pantalla.
   NotificationService? _notif;
   NotificationService? get _notifications {
     if (_notif != null) return _notif;
     if (!mounted) return null;
-    return _notif =
-        context.findAncestorStateOfType<HermesAppState>()?.notifications;
+    return _notif = context
+        .findAncestorStateOfType<HermesAppState>()
+        ?.notifications;
   }
 
   static const Duration _timeout = Duration(minutes: 5);
@@ -155,11 +158,11 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
       await widget.connManager.prefs.remove(_prefKeyInProgress);
       if (!mounted) return;
       setState(() => _phase = _Phase.notStarted);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).lunLaunchError),
-          duration: const Duration(seconds: 7),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).lunLaunchError,
+        tone: HermesSnackTone.error,
+        duration: const Duration(seconds: 7),
       );
       return;
     }
@@ -204,11 +207,11 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
       }
       if (_noProgressTicks >= 7 && !_warnShown && !_bootstrapping) {
         _warnShown = true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).lunTimeoutWarning),
-            duration: const Duration(seconds: 5),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).lunTimeoutWarning,
+          tone: HermesSnackTone.warning,
+          duration: const Duration(seconds: 5),
         );
       }
       return;
@@ -236,11 +239,10 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
     }
     _bootstrapTried = true;
     setState(() => _bootstrapping = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(Strings.of(context).lisBootstrapSnack),
-        duration: const Duration(seconds: 4),
-      ),
+    HermesSnack.show(
+      context,
+      Strings.of(context).lisBootstrapSnack,
+      duration: const Duration(seconds: 4),
     );
     final ok = await _termux.bootstrapExternalApps();
     if (!mounted) return;
@@ -596,7 +598,9 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                Strings.of(context).lunStageCount(_stageIndex + 1, _kStageKeys.length),
+                Strings.of(
+                  context,
+                ).lunStageCount(_stageIndex + 1, _kStageKeys.length),
                 style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
               ),
             ],
@@ -722,10 +726,7 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const HermesStatusIndicator(
-              mood: HermesSparkMood.error,
-              size: 60,
-            ),
+            const HermesStatusIndicator(mood: HermesSparkMood.error, size: 60),
             const SizedBox(height: 18),
             Text(
               str.lunPartialTitle,
@@ -819,10 +820,7 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const HermesStatusIndicator(
-              mood: HermesSparkMood.error,
-              size: 60,
-            ),
+            const HermesStatusIndicator(mood: HermesSparkMood.error, size: 60),
             const SizedBox(height: 18),
             Text(
               Strings.of(context).lunStartFailedTitle,
@@ -873,10 +871,7 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const HermesStatusIndicator(
-              mood: HermesSparkMood.error,
-              size: 60,
-            ),
+            const HermesStatusIndicator(mood: HermesSparkMood.error, size: 60),
             const SizedBox(height: 18),
             Text(
               str.lunCanceledTitle,
@@ -959,14 +954,15 @@ class _LocalUninstallScreenState extends State<LocalUninstallScreen>
                             style: TextStyle(
                               fontSize: 11,
                               height: 1.35,
-                              color: l.toLowerCase().contains('error') ||
+                              color:
+                                  l.toLowerCase().contains('error') ||
                                       l.toLowerCase().contains('fail')
                                   ? colors.error.withValues(alpha: 0.9)
                                   : l.toLowerCase().contains('ok') ||
-                                          l.toLowerCase().contains('done') ||
-                                          l.toLowerCase().contains('eliminado')
-                                      ? colors.success.withValues(alpha: 0.9)
-                                      : colors.textSecondary,
+                                        l.toLowerCase().contains('done') ||
+                                        l.toLowerCase().contains('eliminado')
+                                  ? colors.success.withValues(alpha: 0.9)
+                                  : colors.textSecondary,
                               fontFamily: 'monospace',
                             ),
                           ),

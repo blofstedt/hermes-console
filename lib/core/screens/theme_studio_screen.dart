@@ -11,6 +11,7 @@ import '../theme/theme_profile_validator.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/theme_color_picker.dart';
+import '../widgets/hermes_snack.dart';
 
 class ThemeStudioScreen extends StatefulWidget {
   final ThemeProfile initialProfile;
@@ -332,9 +333,7 @@ class _ThemeStudioScreenState extends State<ThemeStudioScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    HermesSnack.show(context, message);
   }
 
   @override

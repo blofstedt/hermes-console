@@ -30,6 +30,7 @@ import '../../widgets/hermes_premium_ui.dart';
 import '../../../main.dart';
 import '../../../l10n/app_localizations.dart';
 import '../external_provider_screen.dart';
+import '../../widgets/hermes_snack.dart';
 
 /// Una etapa de la instalación + las palabras clave que la detectan en el log.
 class _Stage {
@@ -504,11 +505,10 @@ class _LocalInstallScreenState extends State<LocalInstallScreen>
     _bootstrapTried = true;
     setState(() => _bootstrapping = true);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).lisBootstrapSnack),
-          duration: const Duration(seconds: 4),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).lisBootstrapSnack,
+        duration: const Duration(seconds: 4),
       );
     }
     final ok = await _termux.bootstrapExternalApps();
@@ -1476,11 +1476,11 @@ class _LocalInstallScreenState extends State<LocalInstallScreen>
     if (_errorMsg != null) b.writeln('\n## Error\n$_errorMsg');
     await Clipboard.setData(ClipboardData(text: b.toString()));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(Strings.of(context).lisLogCopied),
-        duration: const Duration(seconds: 2),
-      ),
+    HermesSnack.show(
+      context,
+      Strings.of(context).lisLogCopied,
+      tone: HermesSnackTone.success,
+      duration: const Duration(seconds: 2),
     );
   }
 

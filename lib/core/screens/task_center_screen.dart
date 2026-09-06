@@ -6,9 +6,9 @@
 // Fase 2: SSE en vivo para runs no terminales mientras la pantalla está
 // montada. Máximo 5 streams simultáneos (prioridad: waiting > running > queued).
 // Todos los streams se cancelan en dispose() cerrando el ApiClient.
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -28,6 +28,7 @@ import '../widgets/hermes_pill.dart';
 import '../widgets/hermes_ui.dart';
 import '../widgets/read_only.dart';
 import '../widgets/run_template_composer.dart';
+import '../widgets/hermes_snack.dart';
 import 'runs_screen.dart' show RunDetailScreen, runStatusColor, runStatusLabel;
 
 // Máximo de streams SSE simultáneos para no saturar el gateway.
@@ -376,9 +377,11 @@ class _TaskCenterScreenState extends State<TaskCenterScreen> {
       _openDetail(record);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.runsLaunchError(e.toString()))));
+        s.runsLaunchError(e.toString()),
+        tone: HermesSnackTone.error,
+      );
     }
   }
 
@@ -388,9 +391,7 @@ class _TaskCenterScreenState extends State<TaskCenterScreen> {
     final conn = widget.connection;
     final s = Strings.of(context);
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(s.runsLocalRunning)));
+      HermesSnack.show(context, s.runsLocalRunning);
     }
     final base = conn.derivedBridgeUrl;
     final token = await BridgeClient.provision(base, conn.apiKey.trim());
@@ -433,8 +434,11 @@ class _TaskCenterScreenState extends State<TaskCenterScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: response));
+              // Copiar cerraba el dialogo sin decir nada: el usuario no sabia
+              // si habia copiado. El messenger es el de la pantalla, que sigue
+              // montada tras cerrar el dialogo.
               Navigator.pop(ctx);
+              unawaited(HermesSnack.copied(context, response));
             },
             child: Text(Strings.of(context).commonCopy),
           ),
@@ -474,9 +478,11 @@ class _TaskCenterScreenState extends State<TaskCenterScreen> {
     await _registry?.remove(record.runId, profile: record.profile);
     if (!mounted) return;
     setState(() {});
-    ScaffoldMessenger.of(
+    HermesSnack.show(
       context,
-    ).showSnackBar(SnackBar(content: Text(Strings.of(context).runsDeleted)));
+      Strings.of(context).runsDeleted,
+      tone: HermesSnackTone.success,
+    );
   }
 
   /// Vacía toda la lista local de ejecuciones (con confirmación).
@@ -510,9 +516,7 @@ class _TaskCenterScreenState extends State<TaskCenterScreen> {
     await registry.clear();
     if (!mounted) return;
     setState(() {});
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(s.runsCleared)));
+    HermesSnack.show(context, s.runsCleared, tone: HermesSnackTone.success);
   }
 
   // ─── Build ───────────────────────────────────────────────────────────────────

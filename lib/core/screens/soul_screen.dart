@@ -16,7 +16,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -33,6 +32,7 @@ import '../widgets/read_only.dart';
 import 'bridge_editor_mixin.dart';
 import 'lock_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 // ── Repository interface (local-first, API-ready) ─────────────────────────────
 
@@ -449,25 +449,11 @@ class _SoulScreenState extends State<SoulScreen>
   }
 
   void _copyAll() {
-    Clipboard.setData(ClipboardData(text: _controller.text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              Icons.check,
-              size: 14,
-              color: Theme.of(context).hermes.success,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              Strings.of(context).soulCopied,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
+    unawaited(
+      HermesSnack.copied(
+        context,
+        _controller.text,
+        message: Strings.of(context).soulCopied,
       ),
     );
   }
@@ -596,12 +582,7 @@ class _SoulScreenState extends State<SoulScreen>
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: const TextStyle(fontSize: 12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    HermesSnack.show(context, msg);
   }
 
   @override

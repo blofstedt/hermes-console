@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../utils/generated_artifact_detector.dart';
 import 'hermes_premium_ui.dart';
 import 'hermes_ui.dart';
+import 'hermes_snack.dart';
 
 const int generatedArtifactPreviewCharacterLimit = 120000;
 
@@ -426,9 +427,7 @@ class _GeneratedArtifactViewerState extends State<GeneratedArtifactViewer> {
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    HermesSnack.show(context, message);
   }
 }
 

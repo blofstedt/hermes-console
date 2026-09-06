@@ -19,6 +19,7 @@ import '../widgets/read_only.dart';
 import 'bridge_config_screen.dart';
 import 'lock_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Editor LOCAL de un archivo de memoria.
 ///
@@ -176,30 +177,27 @@ class _MemoryDraftScreenState extends State<MemoryDraftScreen> {
       if (!silent) {
         final exists = res['exists'] == true;
         final s = Strings.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              exists
-                  ? s.memLoadedFromServer('${res['size']}')
-                  : s.memFileNotOnServer,
-            ),
-          ),
+        HermesSnack.show(
+          context,
+          exists
+              ? s.memLoadedFromServer('${res['size']}')
+              : s.memFileNotOnServer,
         );
       }
     } on BridgeException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).memBridgeError(e.message)),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).memBridgeError(e.message),
+          tone: HermesSnackTone.error,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).memLoadFailed(e.toString())),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).memLoadFailed(e.toString()),
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -234,18 +232,14 @@ class _MemoryDraftScreenState extends State<MemoryDraftScreen> {
     await _probeBridge();
     if (mounted) {
       final s = Strings.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _bridge.connected
-                ? s.memBridgeConnectedSnack(
-                    _bridgeCanWrite ? s.memYes : s.memNo,
-                  )
-                : _bridge.running
-                ? s.memBridgeInvalidToken
-                : s.memBridgeConnFailed(_bridge.url),
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        _bridge.connected
+            ? s.memBridgeConnectedSnack(_bridgeCanWrite ? s.memYes : s.memNo)
+            : _bridge.running
+            ? s.memBridgeInvalidToken
+            : s.memBridgeConnFailed(_bridge.url),
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -298,29 +292,27 @@ class _MemoryDraftScreenState extends State<MemoryDraftScreen> {
       if (!mounted) return;
       final backup = res['backup_id'];
       final s = Strings.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            backup != null
-                ? s.memAppliedWithBackup(backup.toString())
-                : s.memApplied,
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        backup != null
+            ? s.memAppliedWithBackup(backup.toString())
+            : s.memApplied,
+        tone: HermesSnackTone.success,
       );
     } on BridgeException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).memBridgeError(e.message)),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).memBridgeError(e.message),
+          tone: HermesSnackTone.error,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(Strings.of(context).memApplyFailed(e.toString())),
-          ),
+        HermesSnack.show(
+          context,
+          Strings.of(context).memApplyFailed(e.toString()),
+          tone: HermesSnackTone.error,
         );
       }
     } finally {
@@ -411,9 +403,11 @@ class _MemoryDraftScreenState extends State<MemoryDraftScreen> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: _ctrl.text));
     if (!mounted) return;
-    ScaffoldMessenger.of(
+    HermesSnack.show(
       context,
-    ).showSnackBar(SnackBar(content: Text(Strings.of(context).memCopied)));
+      Strings.of(context).memCopied,
+      tone: HermesSnackTone.success,
+    );
   }
 
   Future<void> _export() async {
@@ -438,10 +432,10 @@ class _MemoryDraftScreenState extends State<MemoryDraftScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).memExportFailed(e.toString())),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).memExportFailed(e.toString()),
+        tone: HermesSnackTone.error,
       );
     }
   }

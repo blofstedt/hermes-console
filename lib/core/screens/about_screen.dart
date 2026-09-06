@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../widgets/hermes_ui.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Acerca de: identidad de la app, estado del proyecto, atribuciones y
 /// acceso a las licencias open source. Las licencias viven aquí a propósito
@@ -67,8 +68,10 @@ SOFTWARE.
     } catch (e) {
       debugPrint('[about] no se pudo abrir $url: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).aboutLinkError)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).aboutLinkError,
+        tone: HermesSnackTone.error,
       );
     }
   }

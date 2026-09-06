@@ -8,6 +8,7 @@ import '../services/voice/tts_toolset_config.dart';
 import '../theme/app_theme.dart';
 import 'hermes_premium_ui.dart';
 import 'hermes_ui.dart';
+import 'hermes_snack.dart';
 
 /// Configurador remoto de voz basado exclusivamente en los contratos que
 /// publica Hermes. Los secretos solo viven en los controladores mientras el
@@ -395,9 +396,7 @@ class _ServerVoiceControlSurfaceState extends State<ServerVoiceControlSurface> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    HermesSnack.show(context, message);
   }
 
   @override
@@ -1262,15 +1261,19 @@ class _ServerVoiceParametersEditorState
         profile: widget.profile,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.voiceServerParametersSaved)));
+        s.voiceServerParametersSaved,
+        tone: HermesSnackTone.success,
+      );
       Navigator.pop(context, true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(s.voiceServerParametersFailed)));
+        s.voiceServerParametersFailed,
+        tone: HermesSnackTone.error,
+      );
       setState(() => _saving = false);
     }
   }

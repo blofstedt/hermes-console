@@ -11,6 +11,7 @@ import '../widgets/mcp_provisioning_surface.dart';
 import '../widgets/webhook_admin_surfaces.dart';
 import 'admin_integrations_copy.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 enum AdminIntegrationsSection { mcp, webhooks, server }
 
@@ -138,9 +139,7 @@ class _AdminIntegrationsScreenState extends State<AdminIntegrationsScreen> {
 
   void _showNotice(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    HermesSnack.show(context, message);
   }
 
   void _showFailure(Object error) {

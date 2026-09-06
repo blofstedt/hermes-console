@@ -34,6 +34,7 @@ import 'bridge_file_editor_screen.dart';
 import 'chat_screen.dart';
 import 'instance_edit_screen.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 @visibleForTesting
 const cronBackstopRefreshInterval = Duration(seconds: 60);
@@ -280,14 +281,11 @@ class _CronScreenState extends State<CronScreen> with WidgetsBindingObserver {
       final updated = await _repository.pauseOrResume(job);
       if (!mounted) return;
       _replaceJob(updated);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            job.isPaused
-                ? Strings.of(context).crnJobResumed
-                : Strings.of(context).crnJobPaused,
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        job.isPaused
+            ? Strings.of(context).crnJobResumed
+            : Strings.of(context).crnJobPaused,
       );
     } catch (error) {
       _showFailure(error);
@@ -300,9 +298,7 @@ class _CronScreenState extends State<CronScreen> with WidgetsBindingObserver {
       final updated = await _repository.trigger(job);
       if (!mounted) return;
       _replaceJob(updated);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).crnJobTriggered)),
-      );
+      HermesSnack.show(context, Strings.of(context).crnJobTriggered);
     } catch (error) {
       _showFailure(error);
     }
@@ -359,8 +355,10 @@ class _CronScreenState extends State<CronScreen> with WidgetsBindingObserver {
       }
       if (!mounted) return;
       setState(() => _jobs = _jobs.where((row) => row.id != job.id).toList());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).crnJobDeleted(job.title))),
+      HermesSnack.show(
+        context,
+        Strings.of(context).crnJobDeleted(job.title),
+        tone: HermesSnackTone.success,
       );
     } on CronDeleteRejectedException {
       if (mounted) {
@@ -427,9 +425,7 @@ class _CronScreenState extends State<CronScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       final s = Strings.of(context);
       if (preview.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(s.crnCleanupEmpty)));
+        HermesSnack.show(context, s.crnCleanupEmpty);
         return;
       }
       final confirmed = await showDialog<bool>(
@@ -467,9 +463,7 @@ class _CronScreenState extends State<CronScreen> with WidgetsBindingObserver {
       final message = result.preserved == 0
           ? s.crnCleanupDone(result.deleted)
           : s.crnCleanupPartial(result.deleted, result.preserved);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      HermesSnack.show(context, message);
     } catch (error) {
       if (!mounted) return;
       final s = Strings.of(context);
@@ -519,14 +513,12 @@ class _CronScreenState extends State<CronScreen> with WidgetsBindingObserver {
       }
       if (!mounted) return;
       _replaceJob(updated);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            job == null
-                ? Strings.of(context).crnJobCreated
-                : Strings.of(context).crnJobUpdated,
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        job == null
+            ? Strings.of(context).crnJobCreated
+            : Strings.of(context).crnJobUpdated,
+        tone: HermesSnackTone.success,
       );
       unawaited(_loadJobs(showLoader: false));
     } catch (error) {

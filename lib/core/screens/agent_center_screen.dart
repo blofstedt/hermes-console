@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/hermes_ui.dart';
 import 'lock_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Readable mobile view of native background work and saved spawn trees.
 ///
@@ -245,8 +246,10 @@ class _AgentCenterScreenState extends State<AgentCenterScreen> {
       await _load();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).agentCenterStopFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).agentCenterStopFailed,
+        tone: HermesSnackTone.error,
       );
     } finally {
       if (mounted) setState(() => _stopping.remove(process.id));
@@ -300,8 +303,10 @@ class _AgentCenterScreenState extends State<AgentCenterScreen> {
     }
     await _load();
     if (mounted && failed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).agentCenterStopAllFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).agentCenterStopAllFailed,
+        tone: HermesSnackTone.error,
       );
     }
     if (mounted) setState(() => _stopping.removeAll(ids));
@@ -340,13 +345,13 @@ class _AgentCenterScreenState extends State<AgentCenterScreen> {
     try {
       await widget.gateway.startBackgroundTask(widget.runtimeSessionId, text);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).agentCenterTaskAccepted)),
-      );
+      HermesSnack.show(context, Strings.of(context).agentCenterTaskAccepted);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).agentCenterTaskStartFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).agentCenterTaskStartFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }

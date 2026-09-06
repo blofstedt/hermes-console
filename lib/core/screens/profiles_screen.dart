@@ -26,6 +26,7 @@ import '../widgets/hermes_ui.dart';
 import 'lock_screen.dart';
 import 'profile_editor_screen.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Validación del nombre de perfil (debe coincidir con el servidor).
 final _profileNameRe = RegExp(r'^[a-z0-9][a-z0-9_-]{0,63}$');
@@ -111,21 +112,10 @@ class _ProfilesScreenState extends State<ProfilesScreen> {
 
   void _snack(String msg, {bool ok = true}) {
     if (!mounted) return;
-    final colors = Theme.of(context).hermes;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              ok ? Icons.check : Icons.error_outline,
-              size: 15,
-              color: ok ? colors.success : colors.error,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(msg)),
-          ],
-        ),
-      ),
+    HermesSnack.show(
+      context,
+      msg,
+      tone: ok ? HermesSnackTone.success : HermesSnackTone.error,
     );
   }
 
@@ -803,19 +793,17 @@ class _ProfileBuilderScreenState extends State<ProfileBuilderScreen> {
         _creating = false;
         _progressMsg = '';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            Strings.of(context).prfCreateError(humanizeApiError(e)),
-          ),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).prfCreateError(humanizeApiError(e)),
+        tone: HermesSnackTone.error,
       );
     }
   }
 
   void _warn(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      HermesSnack.show(context, msg);
     }
   }
 

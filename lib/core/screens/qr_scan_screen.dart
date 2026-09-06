@@ -7,6 +7,7 @@ import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import '../../l10n/app_localizations.dart';
 import '../services/pairing_link.dart';
 import '../widgets/platform_setup_commands.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Escanea el QR de emparejado (`hermes://pair?...`) que imprime el servidor y
 /// devuelve el [PairingLink] vía `Navigator.pop`. La cámara solo vive aquí.
@@ -78,8 +79,10 @@ class _QrScanScreenState extends State<QrScanScreen> {
     if (link != null) {
       _accept(link);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).qrClipboardInvalid)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).qrClipboardInvalid,
+        tone: HermesSnackTone.error,
       );
     }
   }

@@ -36,6 +36,7 @@ import 'profiles_screen.dart';
 import 'skills_screen.dart';
 import 'soul_screen.dart';
 import 'tasks_screen.dart';
+import '../widgets/hermes_snack.dart';
 
 /// Mobile composition surface over Hermes profiles, sessions and native Kanban.
 ///
@@ -574,9 +575,11 @@ class _MissionControlScreenState extends State<MissionControlScreen>
         '${agent.profile.name}: $error',
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      HermesSnack.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(copy.botRosterUpdateFailed)));
+        copy.botRosterUpdateFailed,
+        tone: HermesSnackTone.error,
+      );
     }
   }
 
@@ -968,9 +971,7 @@ class _MissionControlScreenState extends State<MissionControlScreen>
       return;
     }
     if (existing == null && scopedProfiles.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(MissionControlCopy.of(context).needTwoAgents)),
-      );
+      HermesSnack.show(context, MissionControlCopy.of(context).needTwoAgents);
       return;
     }
     final result = await showHermesFloatingSurface<_RoomDraft>(
@@ -1078,9 +1079,7 @@ class _MissionControlScreenState extends State<MissionControlScreen>
     }
     if (mounted) {
       final copy = MissionControlCopy.of(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(copy.roomOperationPending)));
+      HermesSnack.show(context, copy.roomOperationPending);
     }
     return true;
   }
@@ -1383,10 +1382,10 @@ class _MissionControlScreenState extends State<MissionControlScreen>
     if (!mounted || created == null) return;
     await _load(refresh: true);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(MissionControlCopy.of(context).agentCreated(created)),
-      ),
+    HermesSnack.show(
+      context,
+      MissionControlCopy.of(context).agentCreated(created),
+      tone: HermesSnackTone.success,
     );
     final freshSnapshot = _snapshot;
     if (freshSnapshot == null) return;

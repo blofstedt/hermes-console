@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/attachment_draft.dart';
 import '../theme/app_theme.dart';
+import 'hermes_snack.dart';
 
 /// Tipo visual de adjunto, derivado del mime/extensión. Gobierna el badge de
 /// color y la etiqueta corta (estilo ChatGPT: "PDF", "DOC", "IMG"…).
@@ -500,9 +501,13 @@ Future<void> _saveToGallery(BuildContext context, File file) async {
   final messenger = ScaffoldMessenger.of(context);
   try {
     await Gal.putImage(file.path);
-    messenger.showSnackBar(SnackBar(content: Text(s.imgSavedToGallery)));
+    HermesSnack.showOn(
+      messenger,
+      s.imgSavedToGallery,
+      tone: HermesSnackTone.success,
+    );
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text(s.imgSaveFailed)));
+    HermesSnack.showOn(messenger, s.imgSaveFailed, tone: HermesSnackTone.error);
   }
 }
 

@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_ui.dart';
 import '../widgets/ssh_host_key_dialog.dart';
+import '../widgets/hermes_snack.dart';
 
 class SshCredentialsScreen extends StatefulWidget {
   final SavedConnection connection;
@@ -92,7 +93,7 @@ class _SshCredentialsScreenState extends State<SshCredentialsScreen> {
 
   void _snack(String m) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+      HermesSnack.show(context, m);
     }
   }
 

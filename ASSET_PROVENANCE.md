@@ -6,9 +6,10 @@ third-party names or trademarks.
 
 ## Hermes Console identity
 
-The project owner states that the current gold woman-and-circuit logo was
+The project owner states that the current gold winged-caduceus logo was
 created under their direction using ChatGPT and selected by them as original
-Hermes Console artwork. It was not copied from or derived from Nous Research or
+Hermes Console artwork. It replaces the earlier gold woman-and-circuit mark,
+which was retired from every surface listed here. It was not copied from or derived from Nous Research or
 Hermes Agent artwork. The owner licenses the files listed below for this
 repository under `GPL-3.0-only`.
 
@@ -17,11 +18,11 @@ repository. It makes no broader trademark claim and grants no trademark rights.
 
 | File | Role | Source | License | SHA-256 |
 |---|---|---|---|---|
-| `assets/branding/hermes_logo.webp` | Canonical dark-background in-app logo | Owner-directed ChatGPT output, selected and edited for Hermes Console | GPL-3.0-only | `400bdeabc916c7f17dfb3434acdc8064f1c5d3a5dfd5d1612834e93a08fd1359` |
-| `assets/branding/hermes_logo_light.png` | Light-background in-app variant | Owner-directed ChatGPT output, selected and edited for Hermes Console | GPL-3.0-only | `75a8a05bff4bd92ab17dc2720f171e004a98f372fdaf363d27fc770fe492d98c` |
-| `assets/icon/play_store_512.png` | Store/readme rendition of the current logo | Raster preparation of the owner-selected identity | GPL-3.0-only | `f6826e87e7f751b253e83efacbf2f67fd9af583b6e9ca6b19c3e8bb87f193161` |
+| `assets/branding/hermes_logo.webp` | Canonical dark-background in-app logo | Owner-directed ChatGPT output, selected and edited for Hermes Console | GPL-3.0-only | `4f06d0852d7dc0b65b07f3b9e94a5e8a89a4410468c777688b57c5b579ea9243` |
+| `assets/branding/hermes_logo_light.png` | Light-background in-app variant | Owner-directed ChatGPT output, selected and edited for Hermes Console | GPL-3.0-only | `ac8cbfc7bf521d9eacb78d023e7bdf7f3419de319629fe04b0a429e7d67864cc` |
+| `assets/icon/play_store_512.png` | Store/readme rendition of the current logo | Raster preparation of the owner-selected identity | GPL-3.0-only | `817885fc57c406fa51a11d7392f8e9ed5bfebf00a628c80adfc398358b871644` |
 | `assets/branding/hermes_console_hero.svg` | Editable repository hero | Project-authored vector composition using the owner-selected Hermes Console identity | GPL-3.0-only | `455f918d7fe75605831cf0e692848bf261d08ba57dafb838e9443ef6afa3e9e0` |
-| `assets/branding/hermes_console_hero.png` | Raster repository hero | PNG render of `hermes_console_hero.svg` | GPL-3.0-only | `456f6743ca3bc463009bc822c06c5c042f383ad075a70e39d2d4294834659883` |
+| `assets/branding/hermes_console_hero.png` | Raster repository hero | PNG render of `hermes_console_hero.svg` | GPL-3.0-only | `3e98932d459ab77e54bb8a30d6ab64ef6720e1821b84fc1ba9a21dbad672ae86` |
 
 The launcher, adaptive-icon and splash PNGs below are raster derivatives of
 this identity generated for Android densities and flavors. Their complete

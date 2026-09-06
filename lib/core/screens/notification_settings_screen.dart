@@ -11,6 +11,7 @@ import '../services/notifications/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/hermes_ui.dart';
+import '../widgets/hermes_snack.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -105,8 +106,10 @@ class _NotificationSettingsScreenState
     if (v && !ok) {
       // Mensaje propio del arranque del servicio, no el de la notificación
       // de prueba (spec 028 A-021).
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).notifListenerStartFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).notifListenerStartFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -143,8 +146,10 @@ class _NotificationSettingsScreenState
       _bgBusy = false;
     });
     if (value && !enabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).notifListenerStartFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).notifListenerStartFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }
@@ -186,8 +191,10 @@ class _NotificationSettingsScreenState
       _bgBusy = false;
     });
     if (value && !enabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).notifListenerStartFailed)),
+      HermesSnack.show(
+        context,
+        Strings.of(context).notifListenerStartFailed,
+        tone: HermesSnackTone.error,
       );
     }
   }

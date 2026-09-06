@@ -19,6 +19,7 @@ import '../theme/app_theme.dart';
 import '../widgets/hermes_pill.dart';
 import '../widgets/hermes_ui.dart';
 import '../widgets/hermes_app_bar.dart';
+import '../widgets/hermes_snack.dart';
 
 class ActivityScreen extends StatelessWidget {
   final SavedConnection connection;
@@ -173,10 +174,10 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
     // Copia en orden cronológico (el inverso del de pantalla).
     final text = visible.reversed.map((e) => e.raw.trimRight()).join('\n');
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(Strings.of(context).actLinesCopied(visible.length)),
-      ),
+    HermesSnack.show(
+      context,
+      Strings.of(context).actLinesCopied(visible.length),
+      tone: HermesSnackTone.success,
     );
   }
 
@@ -417,8 +418,10 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
           color: _levelColor(visible[i].level, colors),
           onLongPress: () {
             Clipboard.setData(ClipboardData(text: visible[i].raw));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(Strings.of(context).actLineCopied)),
+            HermesSnack.show(
+              context,
+              Strings.of(context).actLineCopied,
+              tone: HermesSnackTone.success,
             );
           },
         ),

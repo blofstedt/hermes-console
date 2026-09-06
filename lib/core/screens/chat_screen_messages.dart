@@ -886,11 +886,11 @@ class _SystemBlobChip extends StatelessWidget {
         child: GestureDetector(
           onLongPress: () {
             Clipboard.setData(ClipboardData(text: raw));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(Strings.of(context).chaCopied),
-                duration: const Duration(seconds: 1),
-              ),
+            HermesSnack.show(
+              context,
+              Strings.of(context).chaCopied,
+              tone: HermesSnackTone.success,
+              duration: const Duration(seconds: 1),
             );
           },
           child: Container(
@@ -955,11 +955,11 @@ class _TimelineSystemEventRow extends StatelessWidget {
           behavior: HitTestBehavior.translucent,
           onLongPress: () {
             Clipboard.setData(ClipboardData(text: raw));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(Strings.of(context).chaCopied),
-                duration: const Duration(seconds: 1),
-              ),
+            HermesSnack.show(
+              context,
+              Strings.of(context).chaCopied,
+              tone: HermesSnackTone.success,
+              duration: const Duration(seconds: 1),
             );
           },
           child: ConstrainedBox(
@@ -1027,11 +1027,10 @@ Future<void> _openMarkdownLink(BuildContext context, String? href) async {
   if (!isAllowedMarkdownLinkScheme(href)) {
     debugPrint('Enlace de markdown bloqueado (esquema no permitido): $href');
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Strings.of(context).chaLinkSchemeBlocked),
-          duration: const Duration(seconds: 2),
-        ),
+      HermesSnack.show(
+        context,
+        Strings.of(context).chaLinkSchemeBlocked,
+        duration: const Duration(seconds: 2),
       );
     }
     return;
@@ -1249,11 +1248,11 @@ class _UserMessage extends StatelessWidget {
                         text: userMessageClipboardText(parsed.text),
                       ),
                     );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(Strings.of(context).chaCopied),
-                        duration: Duration(seconds: 1),
-                      ),
+                    HermesSnack.show(
+                      context,
+                      Strings.of(context).chaCopied,
+                      tone: HermesSnackTone.success,
+                      duration: Duration(seconds: 1),
                     );
                   },
                   tooltip: Strings.of(context).chaCopyMessage,
@@ -1700,11 +1699,11 @@ class _AssistantMessage extends StatelessWidget {
                                 ),
                               ),
                             );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(Strings.of(context).chaCopied),
-                                duration: Duration(seconds: 1),
-                              ),
+                            HermesSnack.show(
+                              context,
+                              Strings.of(context).chaCopied,
+                              tone: HermesSnackTone.success,
+                              duration: Duration(seconds: 1),
                             );
                           },
                           borderRadius: BorderRadius.circular(24),
@@ -1808,11 +1807,11 @@ class _AssistantTechnicalDetailsState
   void _copy(BuildContext context) {
     Clipboard.setData(ClipboardData(text: widget.details.join('\n')));
     HapticFeedback.selectionClick();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(Strings.of(context).chaCopied),
-        duration: const Duration(milliseconds: 900),
-      ),
+    HermesSnack.show(
+      context,
+      Strings.of(context).chaCopied,
+      tone: HermesSnackTone.success,
+      duration: const Duration(milliseconds: 900),
     );
   }
 

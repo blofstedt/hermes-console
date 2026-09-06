@@ -36,6 +36,7 @@ import 'companion/mascotas_screen.dart';
 import '../widgets/hermes_spark_mascot.dart';
 import '../widgets/read_only.dart';
 import '../widgets/hermes_ui.dart';
+import '../widgets/motion_entrance.dart';
 import '../widgets/hermes_pill.dart';
 import '../widgets/session_deletion_dialogs.dart';
 import '../widgets/session_title_editor_route.dart';
@@ -49,6 +50,7 @@ import 'session_list_screen.dart';
 import '../widgets/hermes_app_bar.dart';
 import '../widgets/instance_status_panel.dart';
 import '../../l10n/app_localizations.dart';
+import '../widgets/hermes_snack.dart';
 
 /// App home: clean dashboard around the active gateway.
 ///
@@ -359,15 +361,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
           return;
         case LinkedSessionDeleteStatus.cronDeleteFailed:
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(sessionDeletionFailureMessage(s, result))),
+            HermesSnack.show(
+              context,
+              sessionDeletionFailureMessage(s, result),
+              tone: HermesSnackTone.error,
             );
           }
           return;
         case LinkedSessionDeleteStatus.sessionDeleteFailed:
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(sessionDeletionFailureMessage(s, result))),
+            HermesSnack.show(
+              context,
+              sessionDeletionFailureMessage(s, result),
+              tone: HermesSnackTone.error,
             );
           }
           return;
@@ -409,17 +415,17 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
     if (!mounted || newTitle == null) return;
     final trimmed = newTitle.trim();
     if (trimmed.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Strings.of(context).slRenameEmpty)),
-      );
+      HermesSnack.show(context, Strings.of(context).slRenameEmpty);
       return;
     }
     await archive.setSessionTitle(session, trimmed);
     if (!mounted) return;
     setState(() {});
-    ScaffoldMessenger.of(
+    HermesSnack.show(
       context,
-    ).showSnackBar(SnackBar(content: Text(Strings.of(context).slRenamed)));
+      Strings.of(context).slRenamed,
+      tone: HermesSnackTone.success,
+    );
   }
 
   Future<void> _showRecentActions(Session session) async {
@@ -490,23 +496,20 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
   void _offerHideRecent(Session session, {String? message}) {
     final messenger = ScaffoldMessenger.of(context);
     final s = Strings.of(context);
-    messenger.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 6),
-        content: Text(message ?? s.slOfferHideContent),
-        action: SnackBarAction(
-          label: s.slHideAction,
-          onPressed: () async {
-            await _archive?.hide(session.id);
-            if (!mounted) return;
-            setState(() {
-              _recentSessions = _recentSessions
-                  .where((item) => item.id != session.id)
-                  .toList();
-            });
-          },
-        ),
-      ),
+    HermesSnack.showOn(
+      messenger,
+      message ?? s.slOfferHideContent,
+      actionLabel: s.slHideAction,
+      onAction: () async {
+        await _archive?.hide(session.id);
+        if (!mounted) return;
+        setState(() {
+          _recentSessions = _recentSessions
+              .where((item) => item.id != session.id)
+              .toList();
+        });
+      },
+      duration: const Duration(seconds: 6),
     );
   }
 
@@ -874,7 +877,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
   List<Widget> _buildRecentRows(SavedConnection connection, int limit) {
     final rows = <Widget>[];
     final now = DateTime.now();
-    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final activeChats = context
         .findAncestorStateOfType<HermesAppState>()
         ?.activeChats;
@@ -927,11 +929,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
       );
 
       rows.add(
-        FadeSlideIn(
-          delayMs: reduceMotion ? 0 : 30 + (index.clamp(0, 3)) * 20,
-          duration: reduceMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
+        MotionEntrance(
+          delay: Duration(milliseconds: 30 + (index.clamp(0, 3)) * 20),
+          offset: 7,
           child: activeChat == null
               ? recentTile(null)
               : StreamBuilder<ActiveChatEvent>(
@@ -1420,11 +1420,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen>
                 const SizedBox(height: 8),
                 // La mascota vive únicamente sobre la pista del compositor.
                 // Sin Companion o con teclado, el input recupera ese espacio.
-                FadeSlideIn(
-                  delayMs: reduceMotion ? 0 : 30,
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 220),
+                MotionEntrance(
+                  delay: const Duration(milliseconds: 30),
+                  offset: 7,
                   child: _buildPromptStage(
                     enabled: !isRemoteAndOffline,
                     dimmed: isRemoteAndOffline,

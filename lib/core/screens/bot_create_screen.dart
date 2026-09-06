@@ -33,6 +33,7 @@ import '../widgets/hermes_bot_face.dart';
 import '../widgets/hermes_premium_ui.dart';
 import '../widgets/hermes_ui.dart';
 import 'mission_control_copy.dart';
+import '../widgets/hermes_snack.dart';
 
 typedef BotCreateImagePicker = Future<XFile?> Function();
 typedef BotCreateImageNormalizer =
@@ -411,14 +412,11 @@ class _BotCreateScreenState extends State<BotCreateScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _text(
-              'Usa una imagen PNG, JPEG, WebP o GIF de hasta 15 MB.',
-              'Use a PNG, JPEG, WebP, or GIF image up to 15 MB.',
-            ),
-          ),
+      HermesSnack.showOn(
+        messenger,
+        _text(
+          'Usa una imagen PNG, JPEG, WebP o GIF de hasta 15 MB.',
+          'Use a PNG, JPEG, WebP, or GIF image up to 15 MB.',
         ),
       );
     } finally {
