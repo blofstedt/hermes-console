@@ -2,6 +2,8 @@ name: Build Direct Release APKs
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -14,8 +16,77 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Turns a push to main into a tagged release: bump, regenerate the SBOMs that
+  # embed the version, commit and tag. Everything downstream then behaves as if
+  # a tag had been pushed by hand.
+  #
+  # The push below uses GITHUB_TOKEN, whose pushes deliberately do not start new
+  # workflow runs, so this cannot loop. That is also why the tag is not left to
+  # trigger a second run: this same run builds and publishes it.
+  prepare:
+    name: Bump version and tag
+    if: >-
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Pushes the version bump and its tag back to main.
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+      sha: ${{ steps.bump.outputs.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Bump version, regenerate SBOMs and tag
+        id: bump
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email \
+            '41898282+github-actions[bot]@users.noreply.github.com'
+
+          python3 tool/release/bump_version.py --github-output
+          tag="$(grep '^tag=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)"
+
+          # The SBOMs embed the app version and a hash of the generator's
+          # declared inputs, and a later step verifies they match. They must be
+          # regenerated in the same commit as the bump.
+          ./tool/sbom/generate.sh
+
+          git add pubspec.yaml CHANGELOG.md sbom
+          git commit -m "release: Hermes Console ${tag#v}"
+          git tag -a "$tag" -m "Hermes Console ${tag#v}"
+          git push origin HEAD:main
+          git push origin "$tag"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build full APK for GitHub and Obtainium
+    needs: [prepare]
+    # prepare is skipped for tag pushes and manual runs; neither is a failure.
+    if: >-
+      !cancelled()
+      && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:
@@ -24,6 +95,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          # Build the bumped commit, not the one that triggered the run.
+          ref: ${{ needs.prepare.outputs.sha || github.sha }}
 
       - name: Set up Java
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
@@ -173,8 +246,11 @@ jobs:
 
   release:
     name: Publish GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    if: >-
+      !cancelled()
+      && needs.build.result == 'success'
+      && (startsWith(github.ref, 'refs/tags/v') || needs.prepare.outputs.tag != '')
+    needs: [build, prepare]
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required only here to create or update the tag's release.
@@ -189,7 +265,7 @@ jobs:
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag || github.ref_name }}
         run: |
           mapfile -d '' release_files < <(find release-artifacts/release-public \
             -maxdepth 1 -type f -print0 | sort -z)
