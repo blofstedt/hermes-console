@@ -3,6 +3,13 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.11 (4966)
+
+- ci: publish a release automatically on every push to main
+- refactor: split the two monolith files and add a navigation map
+- fix(chat): keep turns alive in background and recover stalled streams
+- fix(ci): pass repository to release commands (#9)
+
 ## 1.2.10 (4965)
 
 - Fixed the agent's reply being lost when the app was minimized mid-turn. An
