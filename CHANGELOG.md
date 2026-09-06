@@ -3,6 +3,12 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.13 (4968)
+
+- brand: replace the identity mark with the winged caduceus
+- polish: route snackbars through one helper so they replace instead of queue
+- polish: guard unsaved bridge edits, fix reduce-motion and long-press haptics
+
 ## 1.2.12 (4967)
 
 - fix(android): use the light launcher icon in the full flavor
