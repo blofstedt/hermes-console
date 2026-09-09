@@ -84,9 +84,40 @@ bool isBrowserTool(Object? raw) {
   return true;
 }
 
-/// Maps a tool name onto the verb the timeline shows.
-BrowserAction classifyBrowserAction(Object? raw) {
-  final name = normalizeBrowserToolName(raw);
+/// Argument that carries the verb when the tool name does not.
+///
+/// A stack that exposes ONE `browser` tool and switches on an `action` field
+/// is as common as one tool per verb, and its steps would otherwise all read
+/// as the generic "acted on".
+const Set<String> _actionArgumentKeys = {
+  'action',
+  'method',
+  'command',
+  'operation',
+  'verb',
+  'tool_action',
+  'browser_action',
+};
+
+/// Maps a tool call onto the verb the timeline shows.
+///
+/// [input] is consulted only when the name alone is inconclusive, and only at
+/// the top level of the arguments: an `action` buried inside a page snapshot
+/// describes the page, not the call.
+BrowserAction classifyBrowserAction(Object? raw, {Object? input}) {
+  final byName = _classifyVerb(normalizeBrowserToolName(raw));
+  if (byName != BrowserAction.other) return byName;
+  if (input is! Map) return BrowserAction.other;
+  for (final key in _actionArgumentKeys) {
+    final value = input[key];
+    if (value is! String) continue;
+    final verb = _classifyVerb(normalizeBrowserToolName(value));
+    if (verb != BrowserAction.other) return verb;
+  }
+  return BrowserAction.other;
+}
+
+BrowserAction _classifyVerb(String? name) {
   if (name == null) return BrowserAction.other;
   bool has(String token) => name.contains(token);
 
@@ -121,9 +152,75 @@ BrowserAction classifyBrowserAction(Object? raw) {
 // ── Bounded search over an arbitrary payload ────────────────────────────────
 
 /// Node budget for one walk. Tool results can nest an entire accessibility
-/// tree; the surface only needs a handful of scalars off the top of it.
-const int _maxVisitedNodes = 400;
-const int _maxDepth = 6;
+/// tree; the surface only needs a handful of scalars off the top of it. The
+/// budget is generous enough that a screenshot parked after such a tree is
+/// still reached — walking already-parsed structure is cheap.
+const int _maxVisitedNodes = 1200;
+const int _maxDepth = 8;
+
+/// Text that could be a JSON document. Only an object or an array is worth
+/// decoding: a quoted word or a number carries nothing the surface reads.
+final RegExp _jsonishRe = RegExp(r'^[\{\[]');
+
+/// Re-types a tool payload that arrived encoded as text.
+///
+/// The same gateway that sends `result` as a map on one turn sends it as the
+/// JSON *text* of that map on the next, and an MCP bridge routinely nests one
+/// encoding inside the other (`content: [{type: text, text: "{\"url\": …}"}]`).
+/// Every search in this file is a plain walk over structure, so a payload that
+/// never got decoded looks empty: no page, no step target, and — the symptom
+/// that gives this away — no frame, with the screenshot sitting right there in
+/// the string.
+///
+/// Decoding happens ONCE, here at the edge, so a multi-megabyte screenshot is
+/// never parsed twice for the same event. Anything that is not JSON is
+/// returned untouched: a prose result stays prose, which is what the
+/// input-request matcher reads.
+Object? normalizeBrowserPayload(Object? payload) {
+  var budget = _maxVisitedNodes;
+
+  Object? walk(Object? node, int depth) {
+    if (depth > _maxDepth || budget-- <= 0) return node;
+    if (node is String) {
+      final trimmed = node.trim();
+      if (trimmed.length < 2 ||
+          trimmed.length > BrowserSessionLimits.payloadCharacters ||
+          !_jsonishRe.hasMatch(trimmed)) {
+        return node;
+      }
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map || decoded is List) return walk(decoded, depth + 1);
+      } catch (_) {
+        // Not JSON after all — prose that happens to open with a brace. It
+        // stays exactly as it arrived.
+      }
+      return node;
+    }
+    if (node is Map) {
+      final decoded = <String, Object?>{};
+      for (final entry in node.entries) {
+        final key = entry.key;
+        if (key is String) decoded[key] = walk(entry.value, depth + 1);
+      }
+      return decoded;
+    }
+    if (node is List) {
+      return <Object?>[for (final value in node) walk(value, depth + 1)];
+    }
+    return node;
+  }
+
+  return walk(payload, 0);
+}
+
+/// Decodes a payload that is still a bare JSON string, so every entry point
+/// below works on whatever the caller happens to have.
+///
+/// A payload already normalised by [normalizeBrowserPayload] is a structure by
+/// then, so this costs one type test and never decodes twice.
+Object? _normalizedRoot(Object? payload) =>
+    payload is String ? normalizeBrowserPayload(payload) : payload;
 
 /// Depth-first search for the first non-empty string stored under any of
 /// [keys]. Fails closed: an exhausted budget returns null rather than a guess.
@@ -223,7 +320,7 @@ const Set<String> _titleKeys = {'title', 'page_title', 'pagetitle'};
 /// key is not an address and is dropped rather than shown.
 String? browserUrlFrom(Object? payload) {
   final raw = _findString(
-    payload,
+    _normalizedRoot(payload),
     _urlKeys,
     limit: BrowserSessionLimits.urlCharacters,
   );
@@ -240,7 +337,7 @@ String? browserUrlFrom(Object? payload) {
 /// carries nothing, so it is dropped.
 String? browserTitleFrom(Object? payload, {String? url}) {
   final raw = _findString(
-    payload,
+    _normalizedRoot(payload),
     _titleKeys,
     limit: BrowserSessionLimits.labelCharacters,
   );
@@ -256,10 +353,23 @@ const Set<String> _frameKeys = {
   'screenshot',
   'screenshot_url',
   'screenshoturl',
+  'screenshot_base64',
+  'screenshotbase64',
+  'screenshot_data',
+  'screenshotdata',
   'image',
   'image_url',
   'imageurl',
   'image_base64',
+  'imagebase64',
+  'image_b64',
+  'image_data',
+  'imagedata',
+  'b64_json',
+  'data_uri',
+  'datauri',
+  'data_url',
+  'dataurl',
   'frame',
   'thumbnail',
   'png',
@@ -268,6 +378,20 @@ const Set<String> _frameKeys = {
   'base64',
   'data',
 };
+
+/// A `data:` image URI pasted into prose. A tool that answers in text and puts
+/// its screenshot in the middle of the sentence is handing back a frame just
+/// as much as one with a schema for it.
+final RegExp _embeddedDataUriRe = RegExp(
+  r'data:image/[a-z0-9.+-]{1,20};base64,[A-Za-z0-9+/]+={0,2}',
+  caseSensitive: false,
+);
+
+/// Floor for a data URI lifted out of surrounding text. Extracted page content
+/// carries inline favicons and tracking pixels, and a 1×1 GIF must never take
+/// the viewport away from a real screenshot. A picture of a page clears this
+/// by orders of magnitude.
+const int _minEmbeddedFrameCharacters = 512;
 
 /// Base64 magic prefixes, so a bare payload can be typed without decoding it.
 const Map<String, String> _base64Signatures = {
@@ -356,11 +480,44 @@ BrowserFrame? _frameFromValue(
   );
 }
 
+/// Pulls a frame out of free text: the whole string as a `data:` URI, or one
+/// embedded in a sentence around it.
+///
+/// Only reached for text the payload already pointed at as a picture — the
+/// result itself, or a value under a screenshot-ish key. Scanning every string
+/// in a payload would turn a favicon inside a page's HTML into "the screen".
+BrowserFrame? _frameFromText(
+  String text, {
+  required DateTime capturedAt,
+  String? stepId,
+  String? url,
+  String? mimeHint,
+}) {
+  final direct = _frameFromValue(
+    text,
+    capturedAt: capturedAt,
+    stepId: stepId,
+    url: url,
+    mimeHint: mimeHint,
+  );
+  if (direct != null) return direct;
+  final embedded = _embeddedDataUriRe.firstMatch(text)?.group(0);
+  if (embedded == null || embedded.length < _minEmbeddedFrameCharacters) {
+    return null;
+  }
+  return _frameFromValue(
+    embedded,
+    capturedAt: capturedAt,
+    stepId: stepId,
+    url: url,
+  );
+}
+
 /// Finds the newest renderable frame in [payload].
 ///
-/// Handles the three shapes seen in the wild: a `data:` URI, an MCP image
-/// content block (`{type: image, data, mimeType}`), and a bare base64 blob
-/// under a screenshot-ish key.
+/// Handles the shapes seen in the wild: a `data:` URI, an MCP image content
+/// block (`{type: image, data, mimeType}`), a bare base64 blob under a
+/// screenshot-ish key, and a result that is itself nothing but the picture.
 BrowserFrame? browserFrameFrom(
   Object? payload, {
   required DateTime capturedAt,
@@ -393,15 +550,18 @@ BrowserFrame? browserFrameFrom(
         final key = entry.key;
         if (key is! String) continue;
         if (!_frameKeys.contains(key.toLowerCase())) continue;
-        final frame = _frameFromValue(
-          entry.value,
-          capturedAt: capturedAt,
-          stepId: stepId,
-          url: url,
-          // A value parked under an image-ish key is allowed to be untyped
-          // base64; one under the generic `data` key is not.
-          mimeHint: key.toLowerCase() == 'data' ? null : 'image/png',
-        );
+        final value = entry.value;
+        final frame = value is String
+            ? _frameFromText(
+                value,
+                capturedAt: capturedAt,
+                stepId: stepId,
+                url: url,
+                // A value parked under an image-ish key is allowed to be
+                // untyped base64; one under the generic `data` key is not.
+                mimeHint: key.toLowerCase() == 'data' ? null : 'image/png',
+              )
+            : null;
         if (frame != null) return frame;
       }
       for (final value in node.values) {
@@ -420,7 +580,18 @@ BrowserFrame? browserFrameFrom(
     return null;
   }
 
-  return walk(payload, 0);
+  final root = _normalizedRoot(payload);
+  // A result that is nothing but the picture: the string never had a key to
+  // be found under.
+  if (root is String) {
+    return _frameFromText(
+      root,
+      capturedAt: capturedAt,
+      stepId: stepId,
+      url: url,
+    );
+  }
+  return walk(root, 0);
 }
 
 // ── "The page needs something from you" ─────────────────────────────────────
@@ -498,10 +669,17 @@ BrowserInputRequest? browserInputRequestFrom({
   Object? result,
   String? url,
 }) {
+  // A tool that encoded its result as JSON text is asking for a value just as
+  // plainly as one that sent a structure; decode before deciding.
+  final decodedInput = _normalizedRoot(input);
+  final decodedResult = _normalizedRoot(result);
   final flagged =
-      _findFlag(result, _inputFlagKeys) || _findFlag(input, _inputFlagKeys);
+      _findFlag(decodedResult, _inputFlagKeys) ||
+      _findFlag(decodedInput, _inputFlagKeys);
 
-  final resultText = result is String ? result : jsonEncodeSafe(result);
+  final resultText = decodedResult is String
+      ? decodedResult
+      : jsonEncodeSafe(decodedResult);
   final textual = resultText != null && _inputNeededRe.hasMatch(resultText);
 
   // A type/fill whose value is a placeholder is a request in its own right:
@@ -509,29 +687,29 @@ BrowserInputRequest? browserInputRequestFrom({
   final placeholderTyping =
       (action == BrowserAction.type || action == BrowserAction.select) &&
       isPlaceholderInputValue(
-        _findString(input, const {'text', 'value', 'input', 'content'}),
+        _findString(decodedInput, const {'text', 'value', 'input', 'content'}),
       );
 
   if (!flagged && !textual && !placeholderTyping) return null;
 
   final field =
       _findString(
-        result,
+        decodedResult,
         _fieldKeys,
         limit: BrowserSessionLimits.labelCharacters,
       ) ??
       _findString(
-        input,
+        decodedInput,
         _fieldKeys,
         limit: BrowserSessionLimits.labelCharacters,
       ) ??
-      _findString(input, const {
+      _findString(decodedInput, const {
         'selector',
         'ref',
         'element_id',
       }, limit: BrowserSessionLimits.labelCharacters);
   final question = _findString(
-    result,
+    decodedResult,
     _questionKeys,
     limit: BrowserSessionLimits.detailCharacters,
   );
@@ -542,7 +720,9 @@ BrowserInputRequest? browserInputRequestFrom({
     field: field,
     // A plain-text result IS the explanation when the tool gave no structured
     // question; a placeholder-typing request has nothing to quote.
-    question: question ?? (textual && result is String ? result.trim() : null),
+    question:
+        question ??
+        (textual && decodedResult is String ? decodedResult.trim() : null),
     url: url,
     secret: _secretFieldRe.hasMatch(haystack),
   );

@@ -2401,6 +2401,7 @@ class ActiveChat {
           _firstTokenTimer = null;
           _usingDesktopGateway = false;
           _runTerminal = true;
+          _sealBrowserActivity();
           traceActive = false;
           pendingApproval = null;
           _cancelling = false;
@@ -6350,6 +6351,7 @@ class ActiveChat {
           _rewindRestoredOnError = true;
           _rewindDashboardAuthRequired = error is DashboardAuthException;
           _runTerminal = true;
+          _sealBrowserActivity();
           traceActive = false;
           pendingApproval = null;
           state = rollbackState ?? ChatPipelineState.completed;
@@ -6375,6 +6377,7 @@ class ActiveChat {
           _rewindRestoredOnError = true;
           _rewindDashboardAuthRequired = error is DashboardAuthException;
           _runTerminal = true;
+          _sealBrowserActivity();
           traceActive = false;
           pendingApproval = null;
           state = rollbackState ?? ChatPipelineState.completed;
@@ -7988,6 +7991,15 @@ class ActiveChat {
     _emit(ActiveChatEvent.browserActivity);
   }
 
+  /// Closes any browser step left open when the turn goes terminal, so the
+  /// card stops claiming the browser is live once nothing is driving it.
+  void _sealBrowserActivity() {
+    final next = BrowserActivityReducer.sealOpenSteps(_browserSession);
+    if (identical(next, _browserSession)) return;
+    _browserSession = next;
+    _emit(ActiveChatEvent.browserActivity);
+  }
+
   /// Drops the outstanding browser input request once its answer is on its way
   /// to the agent, so the card cannot be submitted twice.
   void clearBrowserInputRequest() {
@@ -8656,6 +8668,7 @@ class ActiveChat {
         messages[0] = {...messages[0], 'content': text, '_pipeline': false};
       }
       state = ChatPipelineState.completed;
+      _sealBrowserActivity();
       traceActive = false;
       if (text.isNotEmpty && _shouldNotifyReplies && _notifications != null) {
         await _deliverTerminalNotification(
@@ -9912,6 +9925,7 @@ class ActiveChat {
       return;
     }
     state = ChatPipelineState.completed;
+    _sealBrowserActivity();
     traceActive = false;
     final content = assistantContent.trim();
     if (content.isNotEmpty && _shouldNotifyReplies && _notifications != null) {
@@ -10273,6 +10287,7 @@ class ActiveChat {
         ((messages[0]['content'] as String?) ?? '').isNotEmpty;
     state = ChatPipelineState.failed;
     _finalizeAcceptedTurnDelivery();
+    _sealBrowserActivity();
     traceActive = false;
     _cancelling = false;
     if (!hasPartial &&
@@ -10859,6 +10874,7 @@ class ActiveChat {
         ((messages[0]['content'] as String?) ?? '').isNotEmpty;
     state = ChatPipelineState.cancelled;
     _finalizeAcceptedTurnDelivery();
+    _sealBrowserActivity();
     traceActive = false;
     _cancelling = false;
     if (!hasPartial &&
@@ -11117,6 +11133,7 @@ class ActiveChat {
         ((messages[0]['content'] as String?) ?? '').isNotEmpty;
     state = ChatPipelineState.cancelled;
     _finalizeAcceptedTurnDelivery();
+    _sealBrowserActivity();
     traceActive = false;
     _cancelling = false;
     if (shouldRecoverDesktopCancel) {
@@ -11470,6 +11487,7 @@ class ActiveChat {
       if (state != ChatPipelineState.failed) {
         state = ChatPipelineState.completed;
       }
+      _sealBrowserActivity();
       traceActive = false;
       _emit(ActiveChatEvent.done);
       return true;

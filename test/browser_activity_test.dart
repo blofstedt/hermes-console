@@ -82,6 +82,111 @@ void main() {
       );
       expect(classifyBrowserAction('browser_wait_for'), BrowserAction.waitFor);
     });
+
+    test('reads the verb off the arguments when the name is generic', () {
+      // One `browser` tool switching on an `action` field is as common as one
+      // tool per verb; without this every step reads as "acted on".
+      expect(classifyBrowserAction('browser'), BrowserAction.other);
+      expect(
+        classifyBrowserAction('browser', input: {'action': 'navigate'}),
+        BrowserAction.navigate,
+      );
+      expect(
+        classifyBrowserAction(
+          'mcp__hermes__browser',
+          input: {'command': 'take_screenshot'},
+        ),
+        BrowserAction.screenshot,
+      );
+      // The name still wins when it says anything at all.
+      expect(
+        classifyBrowserAction('browser_click', input: {'action': 'navigate'}),
+        BrowserAction.click,
+      );
+      // A nested `action` describes the page, not the call.
+      expect(
+        classifyBrowserAction('browser', input: {
+          'page': {'action': 'navigate'},
+        }),
+        BrowserAction.other,
+      );
+    });
+  });
+
+  group('encoded payloads', () {
+    final at = DateTime.utc(2026, 1, 1);
+
+    test('decodes a result that arrived as JSON text', () {
+      // The shape that broke the card in the field: everything is there, and
+      // a walk over structure finds none of it.
+      const result =
+          '{"url":"https://example.com/","title":"Example",'
+          '"screenshot":"data:image/png;base64,$_pngBase64"}';
+      expect(browserUrlFrom(result), 'https://example.com/');
+      expect(browserTitleFrom(result, url: 'https://example.com/'), 'Example');
+      expect(browserFrameFrom(result, capturedAt: at)?.kind,
+          BrowserFrameKind.dataUri);
+    });
+
+    test('decodes JSON nested inside an MCP text block', () {
+      final payload = {
+        'content': [
+          {
+            'type': 'text',
+            'text': '{"url":"https://example.com/","screenshot":'
+                '"data:image/png;base64,$_pngBase64"}',
+          },
+        ],
+      };
+      final normalized = normalizeBrowserPayload(payload);
+      expect(browserUrlFrom(normalized), 'https://example.com/');
+      expect(browserFrameFrom(normalized, capturedAt: at), isNotNull);
+    });
+
+    test('leaves prose exactly as it arrived', () {
+      const prose = 'Login required: please enter your verification code.';
+      expect(normalizeBrowserPayload(prose), prose);
+      // A sentence that opens with a brace is still a sentence.
+      expect(normalizeBrowserPayload('{not json'), '{not json');
+    });
+
+    test('accepts a result that is nothing but the picture', () {
+      expect(
+        browserFrameFrom(
+          'data:image/png;base64,$_pngBase64',
+          capturedAt: at,
+        )?.kind,
+        BrowserFrameKind.dataUri,
+      );
+    });
+
+    test('lifts a data uri out of the prose around it', () {
+      // Sized like a real screenshot rather than the 1×1 the rest of these
+      // tests use, so it clears the floor that keeps favicons out.
+      final png = 'iVBORw0KGgo${'A' * 600}';
+      final frame = browserFrameFrom({
+        'screenshot': 'captured 1280x720: data:image/png;base64,$png',
+      }, capturedAt: at);
+      expect(frame?.source, 'data:image/png;base64,$png');
+    });
+
+    test('a tracking pixel inside extracted page text is not the screen', () {
+      // A page's own inline images must never take the viewport away from a
+      // screenshot of that page.
+      expect(
+        browserFrameFrom({
+          'screenshot': '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">',
+        }, capturedAt: at),
+        isNull,
+      );
+    });
+
+    test('a frame the size of a real desktop screenshot survives the cap', () {
+      // 2 MB of base64 is an ordinary full-page PNG, and used to be dropped in
+      // silence: the card sat on "waiting for the first frame" forever.
+      final big = 'data:image/png;base64,${'A' * (2 * 1024 * 1024)}';
+      expect(browserFrameFrom({'screenshot': big}, capturedAt: at), isNotNull);
+    });
   });
 
   group('page identity', () {
@@ -446,6 +551,108 @@ void main() {
       );
       expect(state.url, 'https://other.test/');
       expect(state.title, isNull);
+    });
+
+    test('pairs a completion whose id does not match the start', () {
+      // The gateway sent no id on the start and the EVENT id on the complete.
+      // Pairing by identity alone left the first row spinning forever with a
+      // second row beside it — the card said "live" for the rest of the turn.
+      final state = _fold([
+        (
+          payload: <String, dynamic>{
+            'name': 'browser_navigate',
+            'input': {'url': 'https://example.com'},
+          },
+          running: true,
+        ),
+        (
+          payload: <String, dynamic>{
+            'name': 'browser_navigate',
+            'id': 'evt-9182',
+            'result': {'url': 'https://example.com/'},
+          },
+          running: false,
+        ),
+      ]);
+      expect(state.steps, hasLength(1));
+      expect(state.steps.single.status, BrowserStepStatus.done);
+      expect(state.isBusy, isFalse);
+    });
+
+    test('an adopted completion is not repeated by a duplicate of itself', () {
+      final state = _fold([
+        (
+          payload: <String, dynamic>{
+            'name': 'browser_click',
+            'input': {'element': 'Search'},
+          },
+          running: true,
+        ),
+        for (var i = 0; i < 2; i++)
+          (
+            payload: <String, dynamic>{
+              'name': 'browser_click',
+              'id': 'evt-1',
+              'result': {'ok': true},
+            },
+            running: false,
+          ),
+      ]);
+      expect(state.steps, hasLength(1));
+      // The start's own detail survives being adopted by the completion.
+      expect(state.steps.single.target, 'Search');
+    });
+
+    test('a second call of the same action opens its own row', () {
+      // The fallback closes ONE open step, never collapses a whole timeline.
+      final state = _fold([
+        (
+          payload: <String, dynamic>{'name': 'browser_click', 'id': 'a'},
+          running: true,
+        ),
+        (
+          payload: <String, dynamic>{'name': 'browser_click', 'id': 'b'},
+          running: true,
+        ),
+      ]);
+      expect(state.steps, hasLength(2));
+    });
+
+    test('reads a frame the gateway hung off the event, not the result', () {
+      final state = _fold([
+        (
+          payload: <String, dynamic>{
+            'name': 'browser_take_screenshot',
+            'tool_call_id': 'c1',
+            'screenshot': 'data:image/png;base64,$_pngBase64',
+          },
+          running: false,
+        ),
+      ]);
+      expect(state.frames, hasLength(1));
+    });
+
+    test('a terminal turn stops claiming the browser is live', () {
+      final state = _fold([
+        (
+          payload: <String, dynamic>{
+            'name': 'browser_click',
+            'tool_call_id': 'c1',
+          },
+          running: true,
+        ),
+      ]);
+      expect(state.isBusy, isTrue);
+
+      final sealed = BrowserActivityReducer.sealOpenSteps(state);
+      expect(sealed.isBusy, isFalse);
+      // The step happened; only its outcome was never reported.
+      expect(sealed.steps, hasLength(1));
+      expect(sealed.steps.single.status, BrowserStepStatus.done);
+      expect(
+        identical(BrowserActivityReducer.sealOpenSteps(sealed), sealed),
+        isTrue,
+      );
     });
 
     test('a repeated event does not change the state object', () {
