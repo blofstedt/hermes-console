@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.15 (4970)
+
+- feat(chat): watch the agent's browser from inside the conversation
+
 ## 1.2.14 (4969)
 
 - fix(chat): report a missing session instead of a generic dead end
