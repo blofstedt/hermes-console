@@ -95,7 +95,7 @@ release feed directly:
    signature before installing.
 
 If Android blocks the hand-off, open **Add App** in Obtainium and paste
-`https://github.com/xP3ta/hermes-console` manually.
+`https://github.com/blofstedt/hermes-console` manually.
 
 The Obtainium path and Google Play path are alternative update channels for
 the same production package; do not switch between signatures without first
@@ -104,7 +104,7 @@ checking the published migration notes.
 ### Direct APK
 
 Only install a production APK attached to an official
-[GitHub release](https://github.com/xP3ta/hermes-console/releases). Verify its
+[GitHub release](https://github.com/blofstedt/hermes-console/releases). Verify its
 version, SHA-256 digest and signing certificate. `qa`, `debug` and `profile`
 artifacts are internal test builds and are never public releases.
 
