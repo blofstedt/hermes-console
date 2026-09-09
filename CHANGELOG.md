@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.16 (4971)
+
+- Fix the browser card never showing a frame
+
 ## 1.2.15 (4970)
 
 - feat(chat): watch the agent's browser from inside the conversation
