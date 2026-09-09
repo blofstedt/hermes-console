@@ -1224,6 +1224,10 @@ class LocalVoiceConversationController extends ChangeNotifier
       case ActiveChatEvent.earlierMessagesLoaded:
       case ActiveChatEvent.responseMetrics:
       case ActiveChatEvent.sessionInfo:
+      // Cada captura de navegador va seguida de un `toolProgress` en el mismo
+      // punto de emisión: la voz ya recibe ahí su señal y volver a procesarla
+      // aquí duplicaría la pasada de narración.
+      case ActiveChatEvent.browserActivity:
         break;
     }
     _notify();

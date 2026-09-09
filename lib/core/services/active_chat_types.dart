@@ -37,6 +37,7 @@ enum ActiveChatEvent {
   responseMetrics,
   token,
   toolProgress,
+  browserActivity,
   approvalRequest,
   interactiveRequest,
   sessionInfo,

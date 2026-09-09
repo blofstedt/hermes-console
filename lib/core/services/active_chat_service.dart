@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/chat_event_cards.dart';
 import '../models/attachment_draft.dart';
+import '../models/browser_session.dart';
 import '../models/command_descriptor.dart';
 import '../models/desktop_compression_result.dart';
 import '../models/desktop_context_breakdown.dart';
@@ -36,6 +37,7 @@ import 'artifact_index.dart';
 import 'attachment_uploader.dart';
 import 'bridge_client.dart';
 import 'bridge_version.dart';
+import 'browser_activity_reducer.dart';
 import 'command_risk.dart';
 import 'compression_dispatcher.dart';
 import 'connection_manager.dart';
@@ -868,6 +870,15 @@ class ActiveChat {
   final Map<InteractivePromptKey, Future<DesktopPromptResponse>> _batchLocks =
       {};
   SubagentActivityState? _subagentActivities;
+
+  /// What the agent's browser has done this turn, folded out of the ordinary
+  /// tool event stream. In-memory only: frames are far too large to persist,
+  /// and a replay of the transcript rebuilds whatever the tool rows still say.
+  BrowserSessionState _browserSession = BrowserSessionState.empty;
+
+  /// Monotonic counter that keeps two browser steps apart when the gateway
+  /// sends no tool call id to pair them by.
+  int _browserStepSerial = 0;
   String? _subagentTranscriptTurnAnchor;
   final Set<SubagentActivityKey> _pendingSubagentInterrupts = {};
   ArtifactIndexSnapshot? _artifactIndex;
@@ -975,6 +986,10 @@ class ActiveChat {
 
   List<SubagentActivity> get subagentActivities =>
       _subagentActivities?.activities.toList(growable: false) ?? const [];
+
+  /// Live browser projection for the chat surface. Empty when this turn has
+  /// not touched a browser, which is the usual case.
+  BrowserSessionState get browserSession => _browserSession;
 
   bool isSubagentInterruptPending(SubagentActivity activity) =>
       _pendingSubagentInterrupts.contains(activity.key);
@@ -4626,6 +4641,8 @@ class ActiveChat {
     _runTerminal = false;
     _desktopTurnStartedAt = null;
     _subagentActivities = null;
+    _browserSession = BrowserSessionState.empty;
+    _browserStepSerial = 0;
     _subagentTranscriptTurnAnchor = null;
     // Un terminal sin texto o una reconciliación tardía no puede arrastrar el
     // placeholder del turno anterior al nuevo timeline.
@@ -7608,6 +7625,7 @@ class ActiveChat {
         if (event.type == 'tool.start') {
           _handleLegacyDelegateEvent(event.type, runtimeId, payload);
         }
+        _captureBrowserActivity(payload, running: true);
         _trackVoiceToolEvent(
           payload,
           running: true,
@@ -7621,6 +7639,7 @@ class ActiveChat {
       case 'tool.complete':
         _flushTokenBuffer();
         _captureDesktopGeneratedImage(payload);
+        _captureBrowserActivity(payload, running: false);
         _handleLegacyDelegateEvent(event.type, runtimeId, payload);
         _trackVoiceToolEvent(payload, running: false, startsNew: false);
         _upsertRunTool({
@@ -7944,6 +7963,38 @@ class ActiveChat {
       ...assistant,
       _generatedImagesMetadataKey: merged,
     });
+  }
+
+  /// Side capture of browser tool traffic. Mirrors
+  /// [_captureDesktopGeneratedImage]: it reads the payload the turn already
+  /// delivered and never emits a turn event of its own beyond the repaint, so
+  /// a browser step costs the send path nothing.
+  ///
+  /// A payload that is not a browser tool leaves the state untouched, so this
+  /// can sit on the hot tool path for every session.
+  void _captureBrowserActivity(
+    Map<String, dynamic> payload, {
+    required bool running,
+  }) {
+    final event = BrowserToolEvent.tryParse(
+      payload,
+      running: running,
+      sequence: running ? ++_browserStepSerial : _browserStepSerial,
+    );
+    if (event == null) return;
+    final next = BrowserActivityReducer.reduce(_browserSession, event);
+    if (identical(next, _browserSession)) return;
+    _browserSession = next;
+    _emit(ActiveChatEvent.browserActivity);
+  }
+
+  /// Drops the outstanding browser input request once its answer is on its way
+  /// to the agent, so the card cannot be submitted twice.
+  void clearBrowserInputRequest() {
+    final next = BrowserActivityReducer.clearInputRequest(_browserSession);
+    if (identical(next, _browserSession)) return;
+    _browserSession = next;
+    _emit(ActiveChatEvent.browserActivity);
   }
 
   void _reduceSubagentActivity(SubagentActivityEvent event) {
@@ -8946,11 +8997,13 @@ class ActiveChat {
         state = ChatPipelineState.executing;
         _trackVoiceToolEvent(event, running: true, startsNew: true);
         _upsertRunTool(event, running: true);
+        _captureBrowserActivity(event, running: true);
         _emit(ActiveChatEvent.toolProgress);
       case 'tool.completed':
         _flushTokenBuffer();
         _trackVoiceToolEvent(event, running: false, startsNew: false);
         _upsertRunTool(event, running: false);
+        _captureBrowserActivity(event, running: false);
         _emit(ActiveChatEvent.toolProgress);
       case 'approval.request':
         _flushTokenBuffer();
@@ -9688,6 +9741,8 @@ class ActiveChat {
     _cancelling = false;
     _discardLateInterruptTerminal = false;
     _subagentActivities = null;
+    _browserSession = BrowserSessionState.empty;
+    _browserStepSerial = 0;
     _subagentTranscriptTurnAnchor = null;
     _pendingSubagentInterrupts.clear();
   }
@@ -9755,6 +9810,8 @@ class ActiveChat {
     _cancelling = false;
     _discardLateInterruptTerminal = false;
     _subagentActivities = null;
+    _browserSession = BrowserSessionState.empty;
+    _browserStepSerial = 0;
     _subagentTranscriptTurnAnchor = null;
     _pendingSubagentInterrupts.clear();
     final acceptedOptimistic = messages
