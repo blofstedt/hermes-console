@@ -501,7 +501,8 @@ class ActiveChatService {
     }
     if (event == ActiveChatEvent.token) return HomeWidgetAgentState.streaming;
     if (event == ActiveChatEvent.toolProgress ||
-        event == ActiveChatEvent.subagentActivity) {
+        event == ActiveChatEvent.subagentActivity ||
+        event == ActiveChatEvent.browserActivity) {
       return HomeWidgetAgentState.toolExecution;
     }
     if (event == ActiveChatEvent.started ||
@@ -545,6 +546,7 @@ class ActiveChatService {
     ActiveChatEvent.approvalRequest ||
     ActiveChatEvent.interactiveRequest ||
     ActiveChatEvent.subagentActivity ||
+    ActiveChatEvent.browserActivity ||
     ActiveChatEvent.done ||
     ActiveChatEvent.error ||
     ActiveChatEvent.cancelled => true,
@@ -615,6 +617,7 @@ class ActiveChatService {
         ActiveChatEvent.approvalRequest ||
         ActiveChatEvent.interactiveRequest ||
         ActiveChatEvent.subagentActivity ||
+        ActiveChatEvent.browserActivity ||
         ActiveChatEvent.done ||
         ActiveChatEvent.cancelled => HomeWidgetConnectionState.connected,
         ActiveChatEvent.started

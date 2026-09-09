@@ -142,6 +142,7 @@ import '../widgets/interactive_prompt_card.dart';
 import '../widgets/markdown_table.dart';
 import '../widgets/mission_profile_avatar.dart';
 import '../widgets/motion_entrance.dart';
+import '../widgets/browser_live_view_card.dart';
 import '../widgets/subagent_activity_card.dart';
 import '../widgets/platform_setup_commands.dart';
 import '../widgets/hermes_pill.dart';
@@ -471,6 +472,7 @@ class _ChatScreenState extends State<ChatScreen>
   // Resolviendo una aprobación del agente (deshabilita los botones).
   bool _resolvingApproval = false;
   bool _resolvingInteractivePrompt = false;
+  bool _submittingBrowserInput = false;
   final Set<String> _openingSubagentSessionIds = {};
   StreamSubscription<SttResult>? _sttSub;
   // Salvaguarda: si tras pulsar "parar" el reconocedor no emite resultado final
@@ -3144,6 +3146,7 @@ class _ChatScreenState extends State<ChatScreen>
       // repintado al mensaje vivo y el post-frame conserva el seguimiento.
       case ActiveChatEvent.toolProgress:
       case ActiveChatEvent.subagentActivity:
+      case ActiveChatEvent.browserActivity:
       case ActiveChatEvent.approvalRequest:
       case ActiveChatEvent.interactiveRequest:
         // Tarjetas (no texto): si el usuario sigue el fondo, baja con ellas; si
@@ -4795,6 +4798,32 @@ class _ChatScreenState extends State<ChatScreen>
 
   bool _isRoomTaskWriteConflict(Object error) =>
       error is DashboardHttpException && error.statusCode == 409;
+
+  /// Hands the value the user typed into the browser card to the agent.
+  ///
+  /// It travels the ordinary turn path: a steer while the run is live, a new
+  /// turn once it has finished. There is no side channel — a browser input
+  /// request detected here is a client-side reading of a tool result, not a
+  /// gateway prompt, so the answer is a message like any other. The card says
+  /// as much before the user types a secret into it.
+  Future<void> _answerBrowserInput(String value) async {
+    final answer = value.trim();
+    if (answer.isEmpty || _submittingBrowserInput) return;
+    setState(() => _submittingBrowserInput = true);
+    try {
+      // Cleared first: the request is answered the moment it leaves, and a
+      // failed send must not leave a card that invites a second submission of
+      // the same secret.
+      _chat.clearBrowserInputRequest();
+      await _sendMessageOnce(
+        textOverride: answer,
+        includeComposerAttachments: false,
+        skipSlashRouting: true,
+      );
+    } finally {
+      if (mounted) setState(() => _submittingBrowserInput = false);
+    }
+  }
 
   Future<bool> _sendMessageOnce({
     bool skipSlashRouting = false,
@@ -7780,6 +7809,15 @@ class _ChatScreenState extends State<ChatScreen>
                               _resolveInteractivePromptBatch(answers);
                             },
                             onCancel: _cancelInteractivePrompt,
+                          ),
+                        if (_chat.browserSession.isNotEmpty)
+                          BrowserLiveViewCard(
+                            session: _chat.browserSession,
+                            busy: _submittingBrowserInput,
+                            onSubmitInput: _answerBrowserInput,
+                            onOpenUrl: (url) => unawaited(
+                              _openMarkdownLink(context, url),
+                            ),
                           ),
                         if (_chat.subagentActivities.isNotEmpty)
                           SubagentActivityCard(

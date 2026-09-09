@@ -6441,5 +6441,79 @@
   "drawerSwitchInstance": "Cambiar de instancia",
   "drawerActiveInstance": "Instancia activa",
   "sesMetricCachedTokens": "tokens en caché",
-  "sesMetricCachePercent": "caché %"
+  "sesMetricCachePercent": "caché %",
+  "browserLiveTitle": "Navegador",
+  "@browserLiveTitle": {
+    "description": "Cabecera de la tarjeta del navegador en el chat cuando aún no hay título de página."
+  },
+  "browserLiveWaitingFrame": "Esperando la primera captura…",
+  "@browserLiveWaitingFrame": {
+    "description": "Marcador del visor mientras el navegador todavía no ha devuelto ninguna imagen."
+  },
+  "browserLiveBadgeLive": "En vivo",
+  "@browserLiveBadgeLive": {
+    "description": "Insignia de la tarjeta del navegador mientras hay un paso en curso."
+  },
+  "browserLiveBadgeIdle": "En pausa",
+  "@browserLiveBadgeIdle": {
+    "description": "Insignia de la tarjeta del navegador cuando no hay ningún paso en curso."
+  },
+  "browserLiveOpenExternally": "Abrir en el navegador del teléfono",
+  "@browserLiveOpenExternally": {
+    "description": "Tooltip del botón que abre la página actual fuera de la app."
+  },
+  "browserLiveFrameLatest": "Ir a la última",
+  "@browserLiveFrameLatest": {
+    "description": "Acción que devuelve el visor a la captura más reciente tras retroceder."
+  },
+  "browserLiveStepsCollapse": "Ocultar pasos",
+  "@browserLiveStepsCollapse": {
+    "description": "Contrae la lista de pasos del navegador."
+  },
+  "browserLiveStepsExpand": "Ver {count} pasos más",
+  "@browserLiveStepsExpand": {
+    "description": "Despliega los pasos anteriores del navegador. {count} = número de pasos ocultos.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "browserInputTitle": "Hermes necesita un dato tuyo",
+  "@browserInputTitle": {
+    "description": "Título del bloque que pide al usuario rellenar un campo de la página."
+  },
+  "browserInputHint": "Escribe el valor",
+  "@browserInputHint": {
+    "description": "Placeholder del campo cuando la herramienta no dijo qué campo es."
+  },
+  "browserInputSend": "Enviar",
+  "@browserInputSend": {
+    "description": "Botón que entrega el valor escrito al agente."
+  },
+  "browserInputSecretNote": "Se enviará a tu agente como un mensaje de esta conversación.",
+  "@browserInputSecretNote": {
+    "description": "Aviso bajo un campo sensible (contraseña, código de un solo uso). Debe decir la verdad: la respuesta viaja como un mensaje normal del turno, no por el canal seguro de secret.request."
+  },
+  "browserVerbNavigate": "Abrió",
+  "browserVerbClick": "Pulsó",
+  "browserVerbType": "Escribió en",
+  "browserVerbSubmit": "Envió",
+  "browserVerbScroll": "Se desplazó",
+  "browserVerbScreenshot": "Capturó la pantalla",
+  "browserVerbSnapshot": "Leyó la página",
+  "browserVerbExtract": "Extrajo de",
+  "browserVerbWait": "Esperó a",
+  "browserVerbBack": "Volvió atrás",
+  "browserVerbForward": "Avanzó",
+  "browserVerbSelect": "Seleccionó",
+  "browserVerbPress": "Pulsó la tecla",
+  "browserVerbUpload": "Subió un archivo a",
+  "browserVerbEvaluate": "Ejecutó un script",
+  "browserVerbTab": "Cambió de pestaña",
+  "browserVerbClose": "Cerró la página",
+  "browserVerbOther": "Actuó sobre",
+  "@browserVerbNavigate": {
+    "description": "Verbos de un paso del navegador. Se muestran en negrita seguidos del objetivo (host, campo, selector), que se renderiza aparte y nunca se interpola en la cadena."
+  }
 }
