@@ -19,6 +19,11 @@ final class BrowserToolEvent {
   /// Whatever the tool returned. Null while the step is still open.
   final Object? result;
 
+  /// The whole decoded payload, for a completion only. A gateway that hangs
+  /// the screenshot off the event itself rather than off `result` is still
+  /// handing back a frame, and the viewport is the point of this surface.
+  final Object? envelope;
+
   /// True for `tool.start`, false for `tool.complete`.
   final bool running;
 
@@ -33,6 +38,7 @@ final class BrowserToolEvent {
     required this.at,
     this.input,
     this.result,
+    this.envelope,
     this.failed = false,
   });
 
@@ -60,18 +66,33 @@ final class BrowserToolEvent {
         // the common serial case, and the sequence keeps distinct calls apart.
         'browser-${normalizeBrowserToolName(name) ?? 'step'}-$sequence';
 
-    final result = payload['result'] ?? payload['output'] ?? payload['content'];
+    // Decoded once, here: `input` and `result` each arrive as JSON text about
+    // as often as they arrive as structures, and every search downstream walks
+    // structure. Doing it per-search would re-parse a multi-megabyte
+    // screenshot half a dozen times for one event.
+    final decoded = normalizeBrowserPayload(payload);
+    final envelope = decoded is Map<String, Object?>
+        ? decoded
+        : const <String, Object?>{};
+
+    final input =
+        envelope['input'] ??
+        envelope['arguments'] ??
+        envelope['args'] ??
+        envelope['params'] ??
+        envelope['preview'];
+    final result =
+        envelope['result'] ??
+        envelope['output'] ??
+        envelope['content'] ??
+        envelope['response'];
 
     return BrowserToolEvent(
       callId: callId,
-      action: classifyBrowserAction(name),
-      input:
-          payload['input'] ??
-          payload['arguments'] ??
-          payload['args'] ??
-          payload['params'] ??
-          payload['preview'],
+      action: classifyBrowserAction(name, input: input),
+      input: input,
       result: running ? null : result,
+      envelope: running ? null : envelope,
       running: running,
       failed:
           payload['error'] != null ||
@@ -109,7 +130,21 @@ abstract final class BrowserActivityReducer {
         : BrowserStepStatus.done;
 
     final steps = List<BrowserStep>.of(state.steps);
-    final existing = steps.indexWhere((step) => step.id == event.callId);
+    var existing = steps.indexWhere((step) => step.id == event.callId);
+    if (existing < 0 && !event.running) {
+      // A completion whose id does not match the start that opened the step.
+      // Gateways routinely send an id on only one half of the pair, or send
+      // the EVENT id rather than the call id, and pairing by identity alone
+      // then leaves the start spinning forever with the completion drawn
+      // beside it as a second row — the timeline reads as two steps and the
+      // card never stops saying "live". Same fallback the voice tool tracker
+      // uses: close the newest step of that action still open.
+      existing = steps.lastIndexWhere(
+        (step) =>
+            step.status == BrowserStepStatus.running &&
+            step.action == event.action,
+      );
+    }
     final step = BrowserStep(
       id: event.callId,
       action: event.action,
@@ -136,11 +171,17 @@ abstract final class BrowserActivityReducer {
     final frames = _withFrame(
       state.frames,
       browserFrameFrom(
-        event.result,
-        capturedAt: event.at,
-        stepId: event.callId,
-        url: url ?? state.url,
-      ),
+            event.result,
+            capturedAt: event.at,
+            stepId: event.callId,
+            url: url ?? state.url,
+          ) ??
+          browserFrameFrom(
+            event.envelope,
+            capturedAt: event.at,
+            stepId: event.callId,
+            url: url ?? state.url,
+          ),
     );
 
     final request = event.running
@@ -177,6 +218,32 @@ abstract final class BrowserActivityReducer {
       state.inputRequest == null
       ? state
       : state.copyWith(clearInputRequest: true);
+
+  /// Closes every step still open, for a turn that has gone terminal.
+  ///
+  /// A tool whose completion never arrived — a cancelled turn, a transport
+  /// that dropped, a stack that only reports starts — would otherwise leave
+  /// the card pulsing "live" over a browser that stopped long ago. The step
+  /// stays in the timeline: it did happen, it just has no reported outcome.
+  static BrowserSessionState sealOpenSteps(BrowserSessionState state) {
+    if (!state.isBusy) return state;
+    return state.copyWith(
+      steps: List<BrowserStep>.unmodifiable([
+        for (final step in state.steps)
+          if (step.status == BrowserStepStatus.running)
+            BrowserStep(
+              id: step.id,
+              action: step.action,
+              status: BrowserStepStatus.done,
+              target: step.target,
+              url: step.url,
+              detail: step.detail,
+            )
+          else
+            step,
+      ]),
+    );
+  }
 }
 
 /// Appends [frame] and evicts oldest-first until the retention budget holds.

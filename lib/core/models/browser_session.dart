@@ -53,12 +53,22 @@ enum BrowserFrameKind {
 /// steps; none of it is worth an OOM. Frames live in memory only and are
 /// dropped when the next turn starts.
 abstract final class BrowserSessionLimits {
-  /// Longest accepted `source` for a single inline frame (~2 MB of base64,
-  /// comfortably above a full-page PNG screenshot).
-  static const int frameSourceCharacters = 2 * 1024 * 1024;
+  /// Longest accepted `source` for a single inline frame. A full-page PNG of a
+  /// desktop-sized viewport clears 1 MB on an ordinary page before base64
+  /// inflates it by a third, so the cap has to sit well above that: a frame
+  /// over it is dropped in silence, and the card goes on saying it is waiting
+  /// for a first frame that already arrived.
+  static const int frameSourceCharacters = 4 * 1024 * 1024;
 
   /// Total inline frame bytes retained across the whole session.
-  static const int retainedFrameCharacters = 6 * 1024 * 1024;
+  static const int retainedFrameCharacters = 8 * 1024 * 1024;
+
+  /// Longest JSON text decoded back out of a tool payload. A tool that
+  /// serialised its whole result — screenshot included — into one string is
+  /// the common case, so this has to clear [frameSourceCharacters] with room
+  /// for the envelope around it. Anything longer is left as the string it
+  /// arrived as rather than parsed.
+  static const int payloadCharacters = 8 * 1024 * 1024;
 
   /// How many frames stay scrubbable behind the newest one.
   static const int retainedFrames = 4;
