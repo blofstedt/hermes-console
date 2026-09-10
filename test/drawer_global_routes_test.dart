@@ -147,9 +147,10 @@ void main() {
         'soul',
         'task-center',
         'activity',
+        'chat-analytics',
       }),
     );
-    expect(hub.destinations.map((destination) => destination.id).length, 14);
+    expect(hub.destinations.map((destination) => destination.id).length, 15);
   });
 
   testWidgets('Voz se bloquea y Herramientas sigue accesible sin instancia', (

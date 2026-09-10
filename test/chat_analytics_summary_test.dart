@@ -14,9 +14,9 @@ Session _session({
   'id': id,
   'input_tokens': inputTokens,
   'output_tokens': outputTokens,
-  if (lastActive != null) 'last_active': lastActive,
+  'last_active': ?lastActive,
   'archived': archived,
-  if (parentSessionId != null) 'parent_session_id': parentSessionId,
+  'parent_session_id': ?parentSessionId,
 });
 
 ApprovalActivityEntry _entry(String kind, {double ts = 0}) =>
