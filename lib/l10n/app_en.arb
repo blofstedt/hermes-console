@@ -5313,5 +5313,8 @@
   "browserVerbEvaluate": "Ran a script",
   "browserVerbTab": "Switched tab",
   "browserVerbClose": "Closed the page",
-  "browserVerbOther": "Acted on"
+  "browserVerbOther": "Acted on",
+  "browserLiveBadgeStreaming": "Live view",
+  "ieBrowserStreamUrl": "Browser stream URL (optional)",
+  "ieBrowserStreamUrlHelp": "Live MJPEG view of the agent's browser. Leave empty to try the usual places (port 8090, then /stream on the dashboard and gateway). Set it if your server publishes the stream somewhere else."
 }

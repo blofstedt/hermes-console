@@ -253,6 +253,10 @@ final class BrowserSessionState {
   /// Outstanding ask for a value only the user can give.
   final BrowserInputRequest? inputRequest;
 
+  /// Live view of the browser, when the server published one and said where.
+  /// A still frame is what the tool captured; this is the screen as it moves.
+  final String? streamUrl;
+
   const BrowserSessionState({
     this.steps = const [],
     this.droppedSteps = 0,
@@ -260,6 +264,7 @@ final class BrowserSessionState {
     this.url,
     this.title,
     this.inputRequest,
+    this.streamUrl,
   });
 
   static const BrowserSessionState empty = BrowserSessionState();
@@ -282,6 +287,7 @@ final class BrowserSessionState {
     String? title,
     BrowserInputRequest? inputRequest,
     bool clearInputRequest = false,
+    String? streamUrl,
   }) => BrowserSessionState(
     steps: steps ?? this.steps,
     droppedSteps: droppedSteps ?? this.droppedSteps,
@@ -289,5 +295,6 @@ final class BrowserSessionState {
     url: url ?? this.url,
     title: title ?? this.title,
     inputRequest: clearInputRequest ? null : inputRequest ?? this.inputRequest,
+    streamUrl: streamUrl ?? this.streamUrl,
   );
 }

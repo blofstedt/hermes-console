@@ -347,6 +347,42 @@ String? browserTitleFrom(Object? payload, {String? url}) {
   return raw;
 }
 
+/// Keys a tool uses to hand back a LIVE view of the browser rather than a
+/// still. A server that publishes an MJPEG feed of the session can say so in
+/// its result, and that beats anything the app could guess.
+const Set<String> _streamKeys = {
+  'stream_url',
+  'streamurl',
+  'live_url',
+  'liveurl',
+  'live_view_url',
+  'liveviewurl',
+  'mjpeg_url',
+  'mjpegurl',
+  'preview_url',
+  'view_url',
+  'stream',
+};
+
+/// Live-stream address named anywhere in [payload].
+///
+/// Same shape rule as [browserUrlFrom] — an absolute http(s) address — because
+/// a stream that is not one cannot be opened. Whether it is safe to OPEN is
+/// decided at connect time, not here.
+String? browserStreamUrlFrom(Object? payload) {
+  final raw = _findString(
+    _normalizedRoot(payload),
+    _streamKeys,
+    limit: BrowserSessionLimits.urlCharacters,
+  );
+  if (raw == null) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
+  final scheme = uri.scheme.toLowerCase();
+  if (scheme != 'http' && scheme != 'https') return null;
+  return raw;
+}
+
 // ── Frames ──────────────────────────────────────────────────────────────────
 
 const Set<String> _frameKeys = {

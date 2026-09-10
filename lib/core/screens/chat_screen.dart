@@ -7818,6 +7818,12 @@ class _ChatScreenState extends State<ChatScreen>
                             onOpenUrl: (url) => unawaited(
                               _openMarkdownLink(context, url),
                             ),
+                            streamCandidates:
+                                widget.connection.browserStreamCandidates,
+                            streamHeaders: {
+                              'Authorization':
+                                  'Bearer ${widget.connection.apiKey}',
+                            },
                           ),
                         if (_chat.subagentActivities.isNotEmpty)
                           SubagentActivityCard(

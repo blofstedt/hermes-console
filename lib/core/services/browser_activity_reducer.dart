@@ -200,6 +200,13 @@ abstract final class BrowserActivityReducer {
     final keepPrior =
         priorRequest != null && priorRequest.stepId == event.callId;
 
+    // A stream address, once given, holds for the rest of the turn: the tool
+    // that opened the feed names it, the twenty steps that follow do not.
+    final streamUrl =
+        browserStreamUrlFrom(event.result) ??
+        browserStreamUrlFrom(event.envelope) ??
+        state.streamUrl;
+
     // Built directly rather than through copyWith: a navigation to a new page
     // must be able to CLEAR a stale title, and copyWith cannot express that.
     return BrowserSessionState(
@@ -209,6 +216,7 @@ abstract final class BrowserActivityReducer {
       url: url ?? state.url,
       title: title ?? (url != null && url != state.url ? null : state.title),
       inputRequest: request ?? (keepPrior ? priorRequest : null),
+      streamUrl: streamUrl,
     );
   }
 

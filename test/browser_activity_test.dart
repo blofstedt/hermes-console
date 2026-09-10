@@ -294,6 +294,60 @@ void main() {
     });
   });
 
+  group('live stream address', () {
+    test('reads an address the server advertised', () {
+      expect(
+        browserStreamUrlFrom({'stream_url': 'http://10.0.0.5:8090/stream'}),
+        'http://10.0.0.5:8090/stream',
+      );
+      // Encoded as text, like everything else a gateway sends.
+      expect(
+        browserStreamUrlFrom('{"live_url":"https://box.ts.net/stream"}'),
+        'https://box.ts.net/stream',
+      );
+    });
+
+    test('a stream key that is not an address is not one', () {
+      expect(browserStreamUrlFrom({'stream': true}), isNull);
+      expect(browserStreamUrlFrom({'stream': 'enabled'}), isNull);
+      expect(browserStreamUrlFrom({'stream_url': 'ws://box/stream'}), isNull);
+    });
+
+    test('the address holds for the rest of the turn', () {
+      // The tool that opens the feed names it; the twenty steps after it do
+      // not, and the card must not lose the live view at step two.
+      var state = _fold([
+        (
+          payload: <String, dynamic>{
+            'name': 'browser_navigate',
+            'tool_call_id': 'c1',
+            'result': {
+              'url': 'https://example.com/',
+              'stream_url': 'http://10.0.0.5:8090/stream',
+            },
+          },
+          running: false,
+        ),
+      ]);
+      expect(state.streamUrl, 'http://10.0.0.5:8090/stream');
+
+      state = BrowserActivityReducer.reduce(
+        state,
+        BrowserToolEvent.tryParse({
+          'name': 'browser_click',
+          'tool_call_id': 'c2',
+          'result': {'ok': true},
+        }, running: false)!,
+      );
+      expect(state.streamUrl, 'http://10.0.0.5:8090/stream');
+      // And it survives the turn going terminal with a step still open.
+      expect(
+        BrowserActivityReducer.sealOpenSteps(state).streamUrl,
+        'http://10.0.0.5:8090/stream',
+      );
+    });
+  });
+
   group('input requests', () {
     test('reads a structured flag', () {
       final request = browserInputRequestFrom(
