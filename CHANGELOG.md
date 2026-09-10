@@ -3,6 +3,11 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.17 (4972)
+
+- Show the browser's live screen in the chat, not just stills
+- docs: point Obtainium and download-location links at blofstedt/hermes-console
+
 ## 1.2.16 (4971)
 
 - Fix the browser card never showing a frame
