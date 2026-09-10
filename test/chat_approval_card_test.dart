@@ -101,4 +101,50 @@ void main() {
     await tester.tap(find.text('Permitir'));
     expect(taps, isEmpty);
   });
+
+  testWidgets(
+    'muestra la herramienta aparte cuando difiere de la descripción',
+    (tester) async {
+      await tester.pumpWidget(
+        host(
+          ChatApprovalCard(
+            approval: const {
+              'command': 'curl https://example.com',
+              'tool': 'http_fetch',
+              'description': 'Fetch a URL from the web',
+            },
+            busy: false,
+            onChoice: (_) {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('http_fetch'), findsOneWidget);
+      expect(find.text('Fetch a URL from the web'), findsOneWidget);
+    },
+  );
+
+  testWidgets('bajo YOLO no añade la etiqueta extra de herramienta', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        ChatApprovalCard(
+          approval: const {
+            'command': 'curl https://example.com',
+            'tool': 'http_fetch',
+            'description': 'Fetch a URL from the web',
+          },
+          busy: false,
+          onChoice: (_) {},
+          isYolo: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('http_fetch'), findsNothing);
+    expect(find.text('Fetch a URL from the web'), findsOneWidget);
+  });
 }

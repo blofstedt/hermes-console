@@ -97,7 +97,9 @@ import '../services/voice/voice_settings.dart';
 import 'voice_settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import '../utils/agent_flow_builder.dart';
 import '../utils/api_error.dart';
+import '../utils/pause_suggestion_heuristic.dart';
 import '../utils/voice_error.dart';
 import '../utils/chat_error.dart';
 import '../utils/chat_turn.dart';
@@ -123,6 +125,8 @@ import 'soul_screen.dart';
 import 'tasks_screen.dart';
 import 'chat_render_projection.dart';
 import '../widgets/action_approval.dart';
+import '../widgets/agent_flow_panel.dart';
+import '../widgets/pause_suggestion_chip.dart';
 import '../widgets/attachment_card.dart';
 import '../widgets/attachment_history_preview.dart';
 import '../widgets/attachment_source_sheet.dart';
@@ -427,6 +431,38 @@ class _ChatScreenState extends State<ChatScreen>
   set _pipelineState(ChatPipelineState v) => _chat.state = v;
   List<ChatTraceEvent> get _trace => _chat.trace;
   String get _lastPrompt => _chat.lastPrompt;
+
+  /// Modo YOLO efectivo de esta sesión. El Agent Flow Panel lo usa para no
+  /// pintar nunca un nodo "esperando aprobación" cuando el agente está en
+  /// auto-aprobación total — evitamos así el flash de un frame que puede
+  /// producir `pendingApproval` mientras `_handleApprovalRequest` resuelve
+  /// en segundo plano (ver `ActiveChat._handleApprovalRequest`).
+  bool get _isYoloSession =>
+      context.findAncestorStateOfType<HermesAppState>()?.approvalPolicy
+          .effectiveMode(widget.session.id) ==
+      ApprovalMode.yolo;
+
+  AgentFlowGraph get _agentFlowGraph => buildAgentFlow(
+    trace: _chat.trace,
+    subagents: _chat.subagentActivities,
+    pendingApproval: _chat.pendingApproval,
+    isYolo: _isYoloSession,
+    turnActive: _sending,
+  );
+
+  /// Longitud del trace en el momento en que se descartó la sugerencia de
+  /// pausa (-1 = nunca se descartó). No se persiste: es solo por sesión de
+  /// pantalla. Si el trace sigue creciendo después de descartarla (el turno
+  /// sigue escalando), vuelve a aparecer en vez de quedar apagada para
+  /// siempre.
+  int _pauseHintDismissedAtTraceLength = -1;
+
+  bool get _showPauseSuggestion =>
+      shouldSuggestPause(
+        recentTrace: _chat.trace,
+        draftMessageLength: _textController.text.length,
+      ) &&
+      _chat.trace.length != _pauseHintDismissedAtTraceLength;
 
   bool _loading = true;
   String? _error;
@@ -5724,6 +5760,72 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  /// Duplica esta conversación (`POST /api/sessions/{id}/fork`) y navega al
+  /// chat de la copia. Mismo endpoint/semántica que "Duplicate" en
+  /// `session_detail_screen.dart`: la sesión original queda `branched` y
+  /// cerrada en el servidor — no es una bifurcación local a partir de un
+  /// mensaje concreto (el Gateway no expone ese endpoint todavía), así que
+  /// no fingimos un "rewind" que el servidor no puede respaldar.
+  Future<void> _forkCurrentSession() async {
+    final policy = context
+        .findAncestorStateOfType<HermesAppState>()
+        ?.approvalPolicy;
+    final sessionReadOnly =
+        widget.connection.readOnly ||
+        policy?.effectiveMode(widget.session.id) == ApprovalMode.readOnly;
+    if (sessionReadOnly) {
+      showReadOnlyNotice(context);
+      return;
+    }
+    final strings = Strings.of(context);
+    final colors = Theme.of(context).hermes;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(strings.sesDuplicateTitle),
+        content: Text(strings.sesDuplicateContent),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(strings.sesCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              strings.sesDuplicate,
+              style: TextStyle(color: colors.accent),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      final client = ApiClient(
+        baseUrl: widget.connection.baseUrl,
+        apiKey: widget.connection.apiKey,
+        connectionId: widget.connection.id,
+      );
+      final fork = await client.forkSession(widget.session.id);
+      if (!mounted) return;
+      HermesSnack.show(context, strings.sesDuplicated(fork.title));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ChatScreen(connection: widget.connection, session: fork),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      HermesSnack.show(
+        context,
+        strings.sesDuplicateFailed(e.toString()),
+        tone: HermesSnackTone.error,
+      );
+    }
+  }
+
   // ── Comandos slash ─────────────────────────────────────────────────────────
 
   /// El usuario elige un comando de la paleta. Los que llevan argumento rellenan
@@ -6353,6 +6455,7 @@ class _ChatScreenState extends State<ChatScreen>
             cron: strings.crnOpenFromConversation,
             recovery: strings.chaControlRecovery,
             extensions: strings.drawerExtensions,
+            fork: strings.sesDuplicateTitle,
             delete: strings.sesDelete,
             readOnly: strings.statusReadOnly,
           ),
@@ -6365,6 +6468,12 @@ class _ChatScreenState extends State<ChatScreen>
           onArtifacts: () => select(_ChatControlAction.artifacts),
           onDetails: () => select(_ChatControlAction.details),
           onCron: () => select(_ChatControlAction.cron),
+          // Una Mission Room tiene un binding manager-sesión duradero; forkear
+          // esa sesión desde el sheet genérico dejaría la Room en un estado
+          // que Mission Control no modela. Igual que onDelete, se omite ahí.
+          onFork: widget.missionRoom == null
+              ? () => select(_ChatControlAction.fork)
+              : null,
           onRecovery:
               !_desktopControlCenterAvailable(
                 DesktopGatewayCapability.recoveryCenter,
@@ -6403,6 +6512,8 @@ class _ChatScreenState extends State<ChatScreen>
         unawaited(_openRecoveryCenter());
       case _ChatControlAction.extensions:
         unawaited(_openExtensionsCenter());
+      case _ChatControlAction.fork:
+        unawaited(_forkCurrentSession());
       case _ChatControlAction.delete:
         unawaited(_deleteCurrentChat());
     }
@@ -7790,6 +7901,7 @@ class _ChatScreenState extends State<ChatScreen>
                             companion: context
                                 .findAncestorStateOfType<HermesAppState>()
                                 ?.companion,
+                            isYolo: _isYoloSession,
                           ),
                         if (_chat.pendingInteractivePrompt != null)
                           InteractivePromptCard(
@@ -7825,6 +7937,13 @@ class _ChatScreenState extends State<ChatScreen>
                                   'Bearer ${widget.connection.apiKey}',
                             },
                           ),
+                        if (!_agentFlowGraph.isEmpty)
+                          AgentFlowPanel(
+                            graph: _agentFlowGraph,
+                            turnActive: _sending,
+                            onNodeTap: (node) =>
+                                showAgentFlowNodeDetail(context, node),
+                          ),
                         if (_chat.subagentActivities.isNotEmpty)
                           SubagentActivityCard(
                             activities: _chat.subagentActivities,
@@ -7840,6 +7959,20 @@ class _ChatScreenState extends State<ChatScreen>
                             },
                           ),
                         _buildQueueStrip(colors),
+                        AnimatedBuilder(
+                          animation: _textController,
+                          builder: (context, _) {
+                            if (!_showPauseSuggestion) {
+                              return const SizedBox.shrink();
+                            }
+                            return PauseSuggestionChip(
+                              onDismiss: () => setState(
+                                () => _pauseHintDismissedAtTraceLength =
+                                    _chat.trace.length,
+                              ),
+                            );
+                          },
+                        ),
                         if ((_vc?.active ?? false) && !showVoiceSurface)
                           _buildVoiceReturnBar(
                             colors,

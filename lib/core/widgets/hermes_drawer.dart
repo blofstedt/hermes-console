@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/activity_screen.dart';
 import '../screens/agent_center_screen.dart';
+import '../screens/chat_analytics_screen.dart';
 import '../screens/appearance_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/cron_screen.dart';
@@ -321,6 +322,15 @@ class HermesDrawer extends StatelessWidget {
         enabled: enabled(capabilities.logsRead),
         disabledReason: disabledReason(capabilities.logsRead),
         builder: (_) => ActivityScreen(connection: conn!),
+      ),
+      HermesToolDestination(
+        id: 'chat-analytics',
+        group: strings.drawerGroupSystem,
+        icon: Icons.insights_outlined,
+        label: strings.drawerAnalytics,
+        enabled: enabled(),
+        disabledReason: disabledReason(),
+        builder: (_) => ChatAnalyticsScreen(connection: conn!),
       ),
     ];
   }

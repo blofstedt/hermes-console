@@ -210,6 +210,7 @@ enum _ChatControlAction {
   cron,
   recovery,
   extensions,
+  fork,
   delete,
 }
 
