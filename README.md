@@ -1,6 +1,7 @@
 <p align="center">
   <a href="https://hermes.xpetalab.dev">
-    <ssets/branding/hermes_console_hero.png
+    <img
+      src="assets/branding/hermes_
   </a>
 </p>
 
