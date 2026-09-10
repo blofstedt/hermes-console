@@ -141,7 +141,12 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
           _BrowserViewport(
             frame: frame,
             busy: session.isBusy,
-            emptyLabel: s.browserLiveWaitingFrame,
+            // "Waiting for the first frame…" is a promise something is about
+            // to arrive; once the browser is no longer busy, nothing is
+            // coming, and saying so ("Browser inactive") is the honest state.
+            emptyLabel: session.isBusy
+                ? s.browserLiveWaitingFrame
+                : s.browserLiveInactive,
             stream: wantsStream
                 ? BrowserLiveStreamView(
                     // Keyed by address so a new stream address rebuilds the
@@ -161,10 +166,9 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
                     placeholder: frame == null
                         ? null
                         : ClipRect(
-                            child: BrowserFrameImage(
-                              frame: frame,
+                            child: FittedBox(
                               fit: BoxFit.contain,
-                              alignment: Alignment.topCenter,
+                              child: BrowserFrameImage(frame: frame),
                             ),
                           ),
                   )
@@ -367,10 +371,17 @@ class _BrowserViewport extends StatelessWidget {
             : current == null
             ? _placeholder(colors)
             : ClipRect(
-                child: BrowserFrameImage(
-                  frame: current,
+                // FittedBox does the scaling and centering, not Image's own
+                // `fit`: laid out with no constraints it reports its natural
+                // size, and FittedBox then scales and positions the whole
+                // result within this box, which always comes out centered.
+                // Image's own `fit`, applied while this box is only loosely
+                // constrained in height, can size itself to something whose
+                // aspect ratio no longer matches the picture and then pin it
+                // to one edge instead of centering it.
+                child: FittedBox(
                   fit: BoxFit.contain,
-                  alignment: Alignment.topCenter,
+                  child: BrowserFrameImage(frame: current),
                 ),
               ),
       ),

@@ -102,6 +102,13 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
     // A running step is what makes the card read as live.
     expect(find.text('LIVE'), findsOneWidget);
+    // The picture is scaled and centered by FittedBox, not by Image's own
+    // `fit` — that's what keeps a frame whose aspect ratio doesn't match the
+    // box from being pinned to one edge with a bar down the other side.
+    expect(
+      find.ancestor(of: find.byType(Image), matching: find.byType(FittedBox)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a finished session reads as idle', (tester) async {
@@ -124,6 +131,33 @@ void main() {
     );
     expect(find.text('IDLE'), findsOneWidget);
     expect(find.textContaining('Clicked'), findsOneWidget);
+    // Nothing is coming: the turn is over and no frame ever arrived, so
+    // "Waiting for the first frame…" would be a promise the card cannot
+    // keep.
+    expect(find.text('Browser inactive'), findsOneWidget);
+    expect(find.text('Waiting for the first frame…'), findsNothing);
+  });
+
+  testWidgets('a busy session with no frame yet is still waiting', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        const BrowserLiveViewCard(
+          session: BrowserSessionState(
+            steps: [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.navigate,
+                status: BrowserStepStatus.running,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Waiting for the first frame…'), findsOneWidget);
+    expect(find.text('Browser inactive'), findsNothing);
   });
 
   testWidgets('the step timeline collapses to the newest step', (tester) async {
@@ -313,6 +347,13 @@ void main() {
     // A streaming screen is not the same claim as a busy tool, and the badge
     // says which one the user is looking at.
     expect(find.text('LIVE VIEW'), findsOneWidget);
+    // Same guard as the static-frame path: FittedBox does the centering, so
+    // a stream frame whose aspect ratio doesn't match the card is scaled and
+    // centered rather than pinned to one edge.
+    expect(
+      find.ancestor(of: find.byType(Image), matching: find.byType(FittedBox)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('an address the server advertised is tried first', (

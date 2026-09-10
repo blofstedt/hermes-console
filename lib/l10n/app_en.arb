@@ -5286,6 +5286,7 @@
   "sesMetricCachePercent": "cache %",
   "browserLiveTitle": "Browser",
   "browserLiveWaitingFrame": "Waiting for the first frame…",
+  "browserLiveInactive": "Browser inactive",
   "browserLiveBadgeLive": "Live",
   "browserLiveBadgeIdle": "Idle",
   "browserLiveOpenExternally": "Open in your phone's browser",
