@@ -3,6 +3,13 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.19 (4974)
+
+- Update README with fork details and new features
+- Refactor README.md for better structure and clarity
+- Fix image tag in README.md
+- Fix formatting and update README content
+
 ## 1.2.18 (4973)
 
 - Center the browser viewport and stop claiming it's waiting when it's idle
