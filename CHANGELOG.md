@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.20 (4975)
+
+- Add Agent Flow Panel and six related turn-transparency features
+
 ## 1.2.19 (4974)
 
 - Update README with fork details and new features
