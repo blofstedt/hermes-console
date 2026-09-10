@@ -50,18 +50,28 @@ class _AgentFlowPanelState extends State<AgentFlowPanel>
       begin: 0.35,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
-    if (widget.turnActive) _pulse.repeat(reverse: true);
+    _syncPulse();
     _lastCurrentNodeId = widget.graph.currentNodeId;
+  }
+
+  /// El pulso solo corre cuando el lienzo está desplegado Y el turno sigue
+  /// vivo. Nadie observa `_pulseAlpha` con el panel plegado (solo lo lee el
+  /// painter, que únicamente existe al expandir), así que animar ahí gastaba
+  /// frames durante todo el turno — y dejaba un controller repitiéndose para
+  /// siempre, que es lo que colgaba `pumpAndSettle` en los tests.
+  void _syncPulse() {
+    final shouldPulse = _expanded && widget.turnActive;
+    if (shouldPulse) {
+      if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
+    } else if (_pulse.isAnimating) {
+      _pulse.stop();
+    }
   }
 
   @override
   void didUpdateWidget(covariant AgentFlowPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.turnActive) {
-      if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
-    } else if (_pulse.isAnimating) {
-      _pulse.stop();
-    }
+    _syncPulse();
     final currentNodeId = widget.graph.currentNodeId;
     if (_expanded && currentNodeId != _lastCurrentNodeId) {
       _lastCurrentNodeId = currentNodeId;
@@ -120,7 +130,10 @@ class _AgentFlowPanelState extends State<AgentFlowPanel>
             label: strings.agentFlowPanelTitle,
             excludeSemantics: true,
             child: InkWell(
-              onTap: () => setState(() => _expanded = !_expanded),
+              onTap: () {
+                setState(() => _expanded = !_expanded);
+                _syncPulse();
+              },
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 44),

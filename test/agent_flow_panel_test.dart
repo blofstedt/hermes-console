@@ -54,7 +54,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _app(
-        AgentFlowPanel(graph: _graphWithOneActiveNode(), turnActive: true),
+        AgentFlowPanel(graph: _graphWithOneActiveNode(), turnActive: false),
       ),
     );
     await tester.pump();
@@ -69,6 +69,39 @@ void main() {
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
 
+  testWidgets('collapsed panel never animates, even during a live turn', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        AgentFlowPanel(graph: _graphWithOneActiveNode(), turnActive: true),
+      ),
+    );
+    // Regression guard: the pulse controller used to repeat forever whenever
+    // the turn was live, even collapsed where nothing reads it — which burned
+    // frames on device and made this settle time out.
+    await tester.pumpAndSettle();
+    expect(find.byType(SingleChildScrollView), findsNothing);
+  });
+
+  testWidgets('expanded panel pulses while the turn is live', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        AgentFlowPanel(graph: _graphWithOneActiveNode(), turnActive: true),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Reading a file'));
+    // Past the finite expand animation, so anything still scheduled is the
+    // repeating pulse rather than AnimatedSize settling.
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.binding.transientCallbackCount, greaterThan(0));
+
+    // Collapse again so the ticker is idle at teardown.
+    await tester.tap(find.text('Reading a file'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('tapping a node invokes onNodeTap with that node', (
     tester,
   ) async {
@@ -78,7 +111,7 @@ void main() {
       _app(
         AgentFlowPanel(
           graph: graph,
-          turnActive: true,
+          turnActive: false,
           onNodeTap: (node) => tapped = node,
         ),
       ),

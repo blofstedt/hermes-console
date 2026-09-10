@@ -7837,6 +7837,22 @@ class _ChatScreenState extends State<ChatScreen>
                     ),
                     child: Column(
                       children: [
+                        // El panel de flujo va ARRIBA del transcript, no
+                        // debajo. La lista es `reverse: true`, o sea que su
+                        // contenido está anclado al borde INFERIOR del
+                        // viewport: cualquier cosa insertada debajo mueve ese
+                        // borde y empuja hacia arriba el texto que estás
+                        // leyendo (48px cada vez que empieza y termina un
+                        // turno). Insertado arriba, el viewport se recorta
+                        // desde el techo y el contenido anclado abajo no se
+                        // mueve ni un píxel.
+                        if (!_agentFlowGraph.isEmpty)
+                          AgentFlowPanel(
+                            graph: _agentFlowGraph,
+                            turnActive: _sending,
+                            onNodeTap: (node) =>
+                                showAgentFlowNodeDetail(context, node),
+                          ),
                         Expanded(
                           child: Stack(
                             children: [
@@ -7936,13 +7952,6 @@ class _ChatScreenState extends State<ChatScreen>
                               'Authorization':
                                   'Bearer ${widget.connection.apiKey}',
                             },
-                          ),
-                        if (!_agentFlowGraph.isEmpty)
-                          AgentFlowPanel(
-                            graph: _agentFlowGraph,
-                            turnActive: _sending,
-                            onNodeTap: (node) =>
-                                showAgentFlowNodeDetail(context, node),
                           ),
                         if (_chat.subagentActivities.isNotEmpty)
                           SubagentActivityCard(
