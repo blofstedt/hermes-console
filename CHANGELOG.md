@@ -3,6 +3,11 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.21 (4976)
+
+- Keep the flow panel mounted past turn end; hide fork on empty chats
+- Fix the 10 CI failures the Agent Flow Panel introduced
+
 ## 1.2.20 (4975)
 
 - Add Agent Flow Panel and six related turn-transparency features
