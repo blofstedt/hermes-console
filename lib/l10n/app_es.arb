@@ -6450,6 +6450,10 @@
   "@browserLiveWaitingFrame": {
     "description": "Marcador del visor mientras el navegador todavía no ha devuelto ninguna imagen."
   },
+  "browserLiveInactive": "Navegador inactivo",
+  "@browserLiveInactive": {
+    "description": "Marcador del visor cuando el navegador no está en uso y nunca llegó ninguna imagen (a diferencia de browserLiveWaitingFrame, que es mientras SÍ está trabajando)."
+  },
   "browserLiveBadgeLive": "En vivo",
   "@browserLiveBadgeLive": {
     "description": "Insignia de la tarjeta del navegador mientras hay un paso en curso."

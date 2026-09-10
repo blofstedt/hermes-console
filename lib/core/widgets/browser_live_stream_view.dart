@@ -153,14 +153,24 @@ class _BrowserLiveStreamViewState extends State<BrowserLiveStreamView> {
     return Stack(
       fit: StackFit.passthrough,
       children: [
-        Image.memory(
-          frame,
+        // FittedBox does the scaling and centering, not Image's own `fit`:
+        // laid out with no constraints it reports its natural size, and
+        // FittedBox then scales and positions the WHOLE result within the box
+        // it is given — always centered, always symmetric. Image's own
+        // `fit`, applied while the box around it is only loosely constrained
+        // in height (it adapts to the frame's aspect ratio, up to a cap), can
+        // size that box to something whose aspect ratio no longer matches the
+        // picture, and paint the picture pinned to one edge of it instead of
+        // centered — the black bar down one side this replaces.
+        FittedBox(
           fit: BoxFit.contain,
-          alignment: Alignment.topCenter,
-          // Without this the viewport flashes empty between every frame.
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) =>
-              widget.placeholder ?? const SizedBox.shrink(),
+          child: Image.memory(
+            frame,
+            // Without this the viewport flashes empty between every frame.
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) =>
+                widget.placeholder ?? const SizedBox.shrink(),
+          ),
         ),
         if (_status == BrowserStreamStatus.reconnecting)
           const Positioned(
