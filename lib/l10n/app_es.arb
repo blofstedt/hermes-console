@@ -6513,6 +6513,18 @@
   "browserVerbTab": "Cambió de pestaña",
   "browserVerbClose": "Cerró la página",
   "browserVerbOther": "Actuó sobre",
+  "browserLiveBadgeStreaming": "En directo",
+  "@browserLiveBadgeStreaming": {
+    "description": "Insignia de la tarjeta del navegador cuando se está viendo el stream en vivo, no una captura."
+  },
+  "ieBrowserStreamUrl": "URL del stream del navegador (opcional)",
+  "@ieBrowserStreamUrl": {
+    "description": "Campo de la pantalla de instancia para fijar a mano la URL del stream MJPEG del navegador."
+  },
+  "ieBrowserStreamUrlHelp": "Vista en vivo (MJPEG) del navegador del agente. Vacío = se prueban los sitios habituales (puerto 8090 y /stream en dashboard y gateway). Rellénalo si tu servidor lo publica en otra ruta.",
+  "@ieBrowserStreamUrlHelp": {
+    "description": "Texto de ayuda del campo de URL del stream del navegador."
+  },
   "@browserVerbNavigate": {
     "description": "Verbos de un paso del navegador. Se muestran en negrita seguidos del objetivo (host, campo, selector), que se renderiza aparte y nunca se interpola en la cadena."
   }

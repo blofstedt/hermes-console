@@ -200,6 +200,14 @@ class SavedConnection {
   /// Ignorado en instancias remotas. Default [LocalChatMode.auto].
   final LocalChatMode localChatMode;
 
+  /// URL del stream MJPEG del navegador (p.ej. `http://host:8090/stream`), si
+  /// el usuario la fija a mano. Null = se prueban las candidatas derivadas.
+  ///
+  /// Existe porque el stream lo expone el empaquetado del servidor (en Umbrel,
+  /// una ruta del nginx de la app), y ese sitio no se puede adivinar desde
+  /// aquí: cada despliegue lo publica donde quiere.
+  final String? browserStreamUrl;
+
   SavedConnection({
     required this.id,
     required this.label,
@@ -215,6 +223,7 @@ class SavedConnection {
     this.lastHealthCheckMs,
     this.onDeviceLoopback = false,
     this.localChatMode = LocalChatMode.auto,
+    this.browserStreamUrl,
     InstanceKind? kind,
   }) : kind = kind ?? inferInstanceKind(host);
 
@@ -235,6 +244,7 @@ class SavedConnection {
     int? lastHealthCheckMs,
     bool? onDeviceLoopback,
     LocalChatMode? localChatMode,
+    String? browserStreamUrl,
     InstanceKind? kind,
   }) {
     return SavedConnection(
@@ -252,6 +262,7 @@ class SavedConnection {
       lastHealthCheckMs: lastHealthCheckMs ?? this.lastHealthCheckMs,
       onDeviceLoopback: onDeviceLoopback ?? this.onDeviceLoopback,
       localChatMode: localChatMode ?? this.localChatMode,
+      browserStreamUrl: browserStreamUrl ?? this.browserStreamUrl,
       kind: kind ?? this.kind,
     );
   }
@@ -276,6 +287,55 @@ class SavedConnection {
   String get derivedBridgeUrl {
     final scheme = useHttps ? 'https' : 'http';
     return '$scheme://${_resolved(host)}:$defaultBridgePort';
+  }
+
+  /// Puerto por defecto del stream MJPEG del navegador en el servidor.
+  static const int defaultBrowserStreamPort = 8090;
+
+  /// Ruta por defecto del stream, tanto en el puerto directo como detrás de
+  /// un proxy inverso.
+  static const String defaultBrowserStreamPath = '/stream';
+
+  /// Direcciones donde puede vivir el stream del navegador, en el orden en que
+  /// merece la pena probarlas.
+  ///
+  /// El servicio escucha en 8090 dentro del contenedor, pero quien lo publica
+  /// hacia fuera es el empaquetado (en Umbrel, una ruta del nginx de la app),
+  /// así que la dirección real depende del despliegue. Si el usuario fija
+  /// [browserStreamUrl] esa manda y no se prueba nada más; si no, se prueban
+  /// las colocaciones habituales por orden.
+  List<String> get browserStreamCandidates {
+    final explicit = browserStreamUrl?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      final normalized = explicit.contains('://')
+          ? explicit
+          : 'http://$explicit';
+      final uri = Uri.tryParse(normalized);
+      if (uri != null && uri.host.isNotEmpty) {
+        final resolved = _resolved(uri.host);
+        return <String>[
+          (resolved == uri.host ? uri : uri.replace(host: resolved)).toString(),
+        ];
+      }
+      return <String>[normalized];
+    }
+
+    final scheme = useHttps ? 'https' : 'http';
+    final resolvedHost = _resolved(host);
+    final candidates = <String>[
+      // El servicio en su puerto propio, expuesto tal cual.
+      '$scheme://$resolvedHost:$defaultBrowserStreamPort'
+          '$defaultBrowserStreamPath',
+      // Publicado como ruta del proxy que ya sirve el dashboard…
+      '$effectiveDashboardUrl$defaultBrowserStreamPath',
+      // …o del propio gateway.
+      '$baseUrl$defaultBrowserStreamPath',
+    ];
+    final seen = <String>{};
+    return <String>[
+      for (final candidate in candidates)
+        if (seen.add(candidate)) candidate,
+    ];
   }
 
   /// Dashboard/API-server topology differs between local LAN and HTTPS proxy
@@ -382,6 +442,7 @@ class SavedConnection {
       'last_health_check_ms': lastHealthCheckMs,
       'on_device_loopback': onDeviceLoopback,
       'local_chat_mode': localChatMode.storageKey,
+      'browser_stream_url': browserStreamUrl,
       // api_key is NOT persisted here — stored in Android Keystore via SecureStorage
     };
   }
@@ -411,6 +472,7 @@ class SavedConnection {
         fallback: AuthMode.bearerToken,
       ),
       dashboardUrl: map['dashboard_url'] as String?,
+      browserStreamUrl: map['browser_stream_url'] as String?,
       dashboardAuthMode: AuthMode.fromStorage(
         map['dashboard_auth_mode'] as String?,
         fallback: AuthMode.cookieSession,

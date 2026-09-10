@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/browser_session.dart';
 import '../theme/app_theme.dart';
+import '../services/browser_stream_client.dart';
+import 'browser_live_stream_view.dart';
 import 'hermes_premium_ui.dart';
 import 'hermes_ui.dart';
 
@@ -31,11 +33,25 @@ class BrowserLiveViewCard extends StatefulWidget {
   /// Opens [url] in the phone's own browser.
   final ValueChanged<String>? onOpenUrl;
 
+  /// Addresses the live MJPEG view might be served at, best first. Empty
+  /// disables the live view and leaves the card showing captured stills.
+  final List<String> streamCandidates;
+
+  /// Auth for the stream endpoint, when it sits behind the same gate as the
+  /// rest of the instance.
+  final Map<String, String> streamHeaders;
+
+  /// Injection seam for tests; null means the view opens its own client.
+  final BrowserStreamClient? streamClient;
+
   const BrowserLiveViewCard({
     required this.session,
     this.busy = false,
     this.onSubmitInput,
     this.onOpenUrl,
+    this.streamCandidates = const [],
+    this.streamHeaders = const {},
+    this.streamClient,
     super.key,
   });
 
@@ -51,6 +67,16 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
   /// new frame does not yank the viewport away from someone looking at an
   /// earlier one.
   int? _pinnedFrame;
+
+  /// The live view was tried and no address answered. Kept for the life of
+  /// this card — which is the life of one turn — so a deployment without the
+  /// stream published does not re-dial on every rebuild. A later turn tries
+  /// again, so publishing the route mid-conversation is picked up.
+  bool _streamUnavailable = false;
+
+  /// A frame has arrived from the live view: the badge can say so, and the
+  /// viewport is showing the screen rather than a still.
+  bool _streamLive = false;
 
   @override
   void didUpdateWidget(covariant BrowserLiveViewCard oldWidget) {
@@ -94,6 +120,16 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
         ? frames[frameIndex]
         : null;
 
+    // The live view is worth opening only while the browser is actually doing
+    // something, and only while the user is watching the newest frame: someone
+    // scrubbed back to step 3 is reading history, not watching a screen.
+    final candidates = _streamCandidates();
+    final wantsStream =
+        candidates.isNotEmpty &&
+        !_streamUnavailable &&
+        session.isBusy &&
+        _pinnedFrame == null;
+
     return HermesCard(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       padding: EdgeInsets.zero,
@@ -101,11 +137,38 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _header(colors, s),
+          _header(colors, s, streaming: wantsStream && _streamLive),
           _BrowserViewport(
             frame: frame,
             busy: session.isBusy,
             emptyLabel: s.browserLiveWaitingFrame,
+            stream: wantsStream
+                ? BrowserLiveStreamView(
+                    // Keyed by address so a new stream address rebuilds the
+                    // view rather than reusing a connection to the old one.
+                    key: ValueKey<String>(candidates.join('|')),
+                    candidates: candidates,
+                    headers: widget.streamHeaders,
+                    client: widget.streamClient,
+                    onUnavailable: () {
+                      if (mounted) setState(() => _streamUnavailable = true);
+                    },
+                    onLive: () {
+                      if (mounted && !_streamLive) {
+                        setState(() => _streamLive = true);
+                      }
+                    },
+                    placeholder: frame == null
+                        ? null
+                        : ClipRect(
+                            child: BrowserFrameImage(
+                              frame: frame,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.topCenter,
+                            ),
+                          ),
+                  )
+                : null,
             onTap: frame == null
                 ? null
                 : () => showBrowserFrameViewer(
@@ -137,7 +200,25 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
     );
   }
 
-  Widget _header(HermesThemeColors colors, Strings s) {
+  /// Where to look for the live view, best first.
+  ///
+  /// An address the server itself advertised in a tool result always wins: it
+  /// knows where it published the feed, and the app is only guessing.
+  List<String> _streamCandidates() {
+    final advertised = widget.session.streamUrl;
+    if (advertised == null) return widget.streamCandidates;
+    return <String>[
+      advertised,
+      for (final candidate in widget.streamCandidates)
+        if (candidate != advertised) candidate,
+    ];
+  }
+
+  Widget _header(
+    HermesThemeColors colors,
+    Strings s, {
+    required bool streaming,
+  }) {
     final session = widget.session;
     final url = session.url;
     final host = url == null ? null : Uri.tryParse(url)?.host;
@@ -179,7 +260,14 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
           ),
           const SizedBox(width: 8),
           HermesBadge(
-            session.isBusy ? s.browserLiveBadgeLive : s.browserLiveBadgeIdle,
+            // "Live view" is claimed only while the screen is genuinely
+            // streaming: a busy tool handing back stills is live ACTIVITY,
+            // not a live picture, and a turn that ended is neither.
+            streaming
+                ? s.browserLiveBadgeStreaming
+                : session.isBusy
+                ? s.browserLiveBadgeLive
+                : s.browserLiveBadgeIdle,
             color: session.isBusy ? colors.success : colors.textDisabled,
             dot: session.isBusy,
           ),
@@ -251,10 +339,15 @@ class _BrowserViewport extends StatelessWidget {
   final String emptyLabel;
   final VoidCallback? onTap;
 
+  /// The live view, when one is worth opening. It falls back to [frame] on its
+  /// own while connecting, so the viewport never blanks.
+  final Widget? stream;
+
   const _BrowserViewport({
     required this.frame,
     required this.busy,
     required this.emptyLabel,
+    this.stream,
     this.onTap,
   });
 
@@ -262,13 +355,16 @@ class _BrowserViewport extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).hermes;
     final current = frame;
+    final live = stream;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
         color: colors.background,
         constraints: const BoxConstraints(minHeight: 96, maxHeight: 320),
-        child: current == null
+        child: live != null
+            ? ClipRect(child: live)
+            : current == null
             ? _placeholder(colors)
             : ClipRect(
                 child: BrowserFrameImage(

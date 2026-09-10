@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hermes_android/core/services/browser_stream_client.dart';
+import 'package:hermes_android/core/widgets/browser_live_stream_view.dart';
+import 'package:http/http.dart' as http;
 import 'package:hermes_android/core/models/browser_session.dart';
 import 'package:hermes_android/core/theme/app_theme.dart';
 import 'package:hermes_android/core/widgets/browser_live_view_card.dart';
@@ -15,6 +21,38 @@ BrowserFrame _frame([String source = _png]) => BrowserFrame(
   source: source,
   capturedAt: DateTime.utc(2026, 1, 1),
 );
+
+/// A real 1×1 JPEG, so the viewport can actually decode what the stream sends.
+const String _jpegBase64 =
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof'
+    'Hh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAAB'
+    'AAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+
+/// One frame, wrapped the way an MJPEG server wraps it.
+List<int> _jpegPart() => <int>[
+  ...'--b\r\nContent-Type: image/jpeg\r\n\r\n'.codeUnits,
+  ...base64Decode(_jpegBase64),
+  ...'\r\n'.codeUnits,
+];
+
+/// An http client that answers one MJPEG request and then holds the stream
+/// open, as a real one does.
+class _StreamingClient extends http.BaseClient {
+  final List<String> requested = <String>[];
+  final int status;
+
+  _StreamingClient({this.status = 200});
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requested.add(request.url.toString());
+    return http.StreamedResponse(
+      Stream<List<int>>.value(_jpegPart()),
+      status,
+      request: request,
+    );
+  }
+}
 
 void main() {
   Widget host(Widget child) => MaterialApp(
@@ -243,5 +281,168 @@ void main() {
     await tester.tap(find.text('Jump to latest'));
     await tester.pump();
     expect(find.text('Jump to latest'), findsNothing);
+  });
+
+  testWidgets('opens the live view while the browser is working', (
+    tester,
+  ) async {
+    final client = _StreamingClient();
+    await tester.pumpWidget(
+      host(
+        BrowserLiveViewCard(
+          session: BrowserSessionState(
+            steps: const [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.click,
+                status: BrowserStepStatus.running,
+              ),
+            ],
+            frames: [_frame()],
+          ),
+          streamCandidates: const ['http://10.0.0.5:8090/stream'],
+          streamClient: BrowserStreamClient(httpClient: client),
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(client.requested, ['http://10.0.0.5:8090/stream']);
+    // A streaming screen is not the same claim as a busy tool, and the badge
+    // says which one the user is looking at.
+    expect(find.text('LIVE VIEW'), findsOneWidget);
+  });
+
+  testWidgets('an address the server advertised is tried first', (
+    tester,
+  ) async {
+    final client = _StreamingClient();
+    await tester.pumpWidget(
+      host(
+        BrowserLiveViewCard(
+          session: const BrowserSessionState(
+            steps: [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.click,
+                status: BrowserStepStatus.running,
+              ),
+            ],
+            streamUrl: 'http://10.0.0.5:9000/live.mjpg',
+          ),
+          streamCandidates: const ['http://10.0.0.5:8090/stream'],
+          streamClient: BrowserStreamClient(httpClient: client),
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(client.requested.first, 'http://10.0.0.5:9000/live.mjpg');
+  });
+
+  testWidgets('no live view is opened while the browser sits idle', (
+    tester,
+  ) async {
+    final client = _StreamingClient();
+    await tester.pumpWidget(
+      host(
+        BrowserLiveViewCard(
+          session: BrowserSessionState(
+            steps: const [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.click,
+                status: BrowserStepStatus.done,
+              ),
+            ],
+            frames: [_frame()],
+          ),
+          streamCandidates: const ['http://10.0.0.5:8090/stream'],
+          streamClient: BrowserStreamClient(httpClient: client),
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(client.requested, isEmpty);
+    expect(find.text('IDLE'), findsOneWidget);
+  });
+
+  testWidgets('a server with no stream falls back to the captured frame', (
+    tester,
+  ) async {
+    // Every candidate 404s: the card must end up showing the still it has,
+    // not an empty viewport or a spinner that never stops.
+    final client = _StreamingClient(status: 404);
+    await tester.pumpWidget(
+      host(
+        BrowserLiveViewCard(
+          session: BrowserSessionState(
+            steps: const [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.click,
+                status: BrowserStepStatus.running,
+              ),
+            ],
+            frames: [_frame()],
+          ),
+          streamCandidates: const [
+            'http://10.0.0.5:8090/stream',
+            'http://10.0.0.5:9119/stream',
+          ],
+          streamClient: BrowserStreamClient(httpClient: client),
+        ),
+      ),
+    );
+    await tester.pump();
+    // Long enough for both candidates to spend their attempt budget.
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(seconds: 2));
+    }
+
+    expect(client.requested, isNotEmpty);
+    expect(find.byType(BrowserLiveStreamView), findsNothing);
+    expect(find.byType(BrowserFrameImage), findsOneWidget);
+    expect(find.text('LIVE'), findsOneWidget);
+  });
+
+  testWidgets('the live badge goes out when the turn ends', (tester) async {
+    final client = _StreamingClient();
+    BrowserSessionState session(BrowserStepStatus status) =>
+        BrowserSessionState(
+          steps: [
+            BrowserStep(id: 'c1', action: BrowserAction.click, status: status),
+          ],
+          frames: [_frame()],
+        );
+
+    Widget card(BrowserStepStatus status) => host(
+      BrowserLiveViewCard(
+        session: session(status),
+        streamCandidates: const ['http://10.0.0.5:8090/stream'],
+        streamClient: BrowserStreamClient(httpClient: client),
+      ),
+    );
+
+    await tester.pumpWidget(card(BrowserStepStatus.running));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text('LIVE VIEW'), findsOneWidget);
+
+    // The turn ends. Nothing is driving the browser, so nothing is live —
+    // the card must stop claiming a picture it is no longer receiving.
+    await tester.pumpWidget(card(BrowserStepStatus.done));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('LIVE VIEW'), findsNothing);
+    expect(find.text('IDLE'), findsOneWidget);
+    expect(find.byType(BrowserLiveStreamView), findsNothing);
   });
 }

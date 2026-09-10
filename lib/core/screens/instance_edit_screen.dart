@@ -104,6 +104,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
 
   // Dashboard
   late final TextEditingController _dashboardUrlCtrl;
+  late final TextEditingController _browserStreamUrlCtrl;
   AuthMode _dashAuthMode = AuthMode.cookieSession;
   late final TextEditingController _dashTokenCtrl;
   late final TextEditingController _dashUserCtrl;
@@ -159,6 +160,9 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
     _bridgeUrlCtrl = TextEditingController();
     _bridgeTokenCtrl = TextEditingController();
     _dashboardUrlCtrl = TextEditingController(text: init?.dashboardUrl ?? '');
+    _browserStreamUrlCtrl = TextEditingController(
+      text: init?.browserStreamUrl ?? '',
+    );
     // Solo Basic Auth (usuario/contraseña): los otros modos (token automático
     // del Dashboard / token de sesión manual) ya no funcionan en Hermes, así que
     // no se ofrecen. Se fuerza basicAuth siempre.
@@ -247,6 +251,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
       _bridgeUrlCtrl,
       _bridgeTokenCtrl,
       _dashboardUrlCtrl,
+      _browserStreamUrlCtrl,
       _dashTokenCtrl,
       _dashUserCtrl,
       _dashPassCtrl,
@@ -714,6 +719,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
           : stored.password,
     );
     final dashUrl = _dashboardUrlCtrl.text.trim();
+    final streamUrl = _browserStreamUrlCtrl.text.trim();
     final conn = SavedConnection(
       id: id,
       label: _nameCtrl.text.trim().isEmpty
@@ -725,6 +731,7 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
       useHttps: normalized.useHttps,
       readOnly: _readOnly,
       dashboardUrl: dashUrl.isEmpty ? null : dashUrl,
+      browserStreamUrl: streamUrl.isEmpty ? null : streamUrl,
       dashboardAuthMode: _dashAuthMode,
       notes: _notesCtrl.text.trim(),
       lastHealthCheckMs: widget.initial?.lastHealthCheckMs,
@@ -1245,6 +1252,18 @@ class _InstanceEditScreenState extends State<InstanceEditScreen> {
               labelText: Strings.of(context).ieDashboardUrl,
               hintText:
                   widget.initial?.effectiveDashboardUrl ?? s.ieDashboardUrlHint,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _browserStreamUrlCtrl,
+            autocorrect: false,
+            keyboardType: TextInputType.url,
+            decoration: InputDecoration(
+              labelText: s.ieBrowserStreamUrl,
+              hintText: widget.initial?.browserStreamCandidates.first,
+              helperText: s.ieBrowserStreamUrlHelp,
+              helperMaxLines: 3,
             ),
           ),
           const SizedBox(height: 10),
