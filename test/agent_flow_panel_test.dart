@@ -49,6 +49,24 @@ void main() {
     expect(find.byType(InkWell), findsNothing);
   });
 
+  testWidgets('showIdle keeps the strip mounted for an empty graph', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const AgentFlowPanel(
+          graph: AgentFlowGraph.empty,
+          turnActive: false,
+          showIdle: true,
+        ),
+      ),
+    );
+    // The chat screen keeps the panel mounted once a turn has shown it, so
+    // the turn ending cannot change the viewport height mid-transition.
+    expect(find.text('Agent flow'), findsOneWidget);
+    expect(find.byType(InkWell), findsOneWidget);
+  });
+
   testWidgets('collapsed strip shows the current node label and expands on tap', (
     tester,
   ) async {

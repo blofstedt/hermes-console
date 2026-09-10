@@ -18,11 +18,19 @@ import '../utils/markdown_clipboard.dart';
 class AgentFlowPanel extends StatefulWidget {
   final AgentFlowGraph graph;
   final bool turnActive;
+
+  /// Mantiene la tira visible con el grafo vacío, en vez de desaparecer.
+  /// Quien lo monta lo usa para que la altura del panel no cambie al
+  /// terminar el turno — desmontarlo ahí movería el viewport en plena
+  /// transición live→terminal (ver `_agentFlowVisible` en `chat_screen`).
+  final bool showIdle;
+
   final ValueChanged<AgentFlowNode>? onNodeTap;
 
   const AgentFlowPanel({
     required this.graph,
     required this.turnActive,
+    this.showIdle = false,
     this.onNodeTap,
     super.key,
   });
@@ -110,7 +118,7 @@ class _AgentFlowPanelState extends State<AgentFlowPanel>
   @override
   Widget build(BuildContext context) {
     final graph = widget.graph;
-    if (graph.isEmpty) return const SizedBox.shrink();
+    if (graph.isEmpty && !widget.showIdle) return const SizedBox.shrink();
 
     final colors = Theme.of(context).hermes;
     final strings = Strings.of(context);

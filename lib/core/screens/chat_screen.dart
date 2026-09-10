@@ -450,6 +450,22 @@ class _ChatScreenState extends State<ChatScreen>
     turnActive: _sending,
   );
 
+  bool _agentFlowSeen = false;
+
+  /// Una vez que el panel apareció en este chat se queda montado, aunque el
+  /// grafo quede vacío al terminar el turno (el trace se limpia en el
+  /// cierre). Desmontarlo cambiaría la altura del viewport justo en la
+  /// transición live→terminal, y ahí es donde el bloqueo de viewport mide su
+  /// compensación: los tests de `edge viewport` comprueban que
+  /// `pixels` se mueva exactamente lo que se movió `maxScrollExtent`, así que
+  /// 48px de panel entrando o saliendo en ese instante rompen esa
+  /// contabilidad. Aparecer al arrancar el turno es inofensivo (nadie ha
+  /// medido todavía); desaparecer al terminarlo no lo es.
+  bool get _agentFlowVisible {
+    if (!_agentFlowGraph.isEmpty) _agentFlowSeen = true;
+    return _agentFlowSeen;
+  }
+
   /// Longitud del trace en el momento en que se descartó la sugerencia de
   /// pausa (-1 = nunca se descartó). No se persiste: es solo por sesión de
   /// pantalla. Si el trace sigue creciendo después de descartarla (el turno
@@ -6471,7 +6487,12 @@ class _ChatScreenState extends State<ChatScreen>
           // Una Mission Room tiene un binding manager-sesión duradero; forkear
           // esa sesión desde el sheet genérico dejaría la Room en un estado
           // que Mission Control no modela. Igual que onDelete, se omite ahí.
-          onFork: widget.missionRoom == null
+          //
+          // Duplicar una conversación vacía no significa nada: sin mensajes no
+          // hay historia que heredar. Ocultarlo también mantiene el menú dentro
+          // de su presupuesto de altura (debe caber en sus acciones en vez de
+          // llenar el viewport), que es lo que mide `chat_screen_test`.
+          onFork: widget.missionRoom == null && _messages.isNotEmpty
               ? () => select(_ChatControlAction.fork)
               : null,
           onRecovery:
@@ -7846,10 +7867,11 @@ class _ChatScreenState extends State<ChatScreen>
                         // turno). Insertado arriba, el viewport se recorta
                         // desde el techo y el contenido anclado abajo no se
                         // mueve ni un píxel.
-                        if (!_agentFlowGraph.isEmpty)
+                        if (_agentFlowVisible)
                           AgentFlowPanel(
                             graph: _agentFlowGraph,
                             turnActive: _sending,
+                            showIdle: true,
                             onNodeTap: (node) =>
                                 showAgentFlowNodeDetail(context, node),
                           ),
