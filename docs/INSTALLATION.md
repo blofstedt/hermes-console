@@ -29,7 +29,7 @@ Google Play.
 ### Obtainium
 
 Once the first signed GitHub release is available, install Obtainium, choose
-**Add App**, and paste `https://github.com/xP3ta/hermes-console`. Confirm that
+**Add App**, and paste `https://github.com/blofstedt/hermes-console`. Confirm that
 it detects GitHub Releases and verify the published signature before switching
 from another update channel.
 

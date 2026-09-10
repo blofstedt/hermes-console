@@ -1,7 +1,7 @@
 version = 1
 SPDX-PackageName = "Hermes Console"
 SPDX-PackageSupplier = "Organization: XPeta Lab"
-SPDX-PackageDownloadLocation = "https://github.com/xP3ta/hermes-console"
+SPDX-PackageDownloadLocation = "https://github.com/blofstedt/hermes-console"
 
 # Project-authored source, tests, documentation and build configuration.
 # Central annotations keep binary/generated files auditable without adding

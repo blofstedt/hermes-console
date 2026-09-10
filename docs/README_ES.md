@@ -56,7 +56,7 @@ Cuando exista la primera release firmada en GitHub:
 
 1. Instala [Obtainium](https://github.com/ImranR98/Obtainium).
 2. Pulsa **Añadir app**.
-3. Pega `https://github.com/xP3ta/hermes-console`.
+3. Pega `https://github.com/blofstedt/hermes-console`.
 4. Comprueba que detecta **GitHub Releases** y revisa la firma del APK antes de
    instalar.
 
@@ -66,7 +66,7 @@ entre firmas sin revisar antes las notas de migración publicadas.
 ### APK directo
 
 Instala únicamente APK de producción adjuntos a una
-[release oficial](https://github.com/xP3ta/hermes-console/releases). Verifica
+[release oficial](https://github.com/blofstedt/hermes-console/releases). Verifica
 versión, SHA-256 y certificado. Los builds `qa`, `debug` y `profile` son solo
 para pruebas internas.
 
