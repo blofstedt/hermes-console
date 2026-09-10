@@ -34,7 +34,7 @@ Hermes Console is an independent Flutter client for
 Bots, operations, approvals and Voice to Android without putting an XPeta Lab
 account or analytics service between your phone and your server. /n
 
-<b>This repository is a fork and independent continuation of an existing Hermes Android project. I am not the original author and do not claim ownership of the upstream work.</b>
+<b>This repository is a fork and independent continuation of an existing Hermes Android project. I am not the original author and do not claim ownership of the upstream work. I have added a few features (web browser live view) and some polish, but that's it. This is going to continue to improve as I go so if you like the additional features, remember to install obtainium to get new releases automatically.</b>
 
 > Hermes Console is a client, not an AI provider. You need a compatible Hermes
 > Agent instance and any model-provider access required by that instance.
