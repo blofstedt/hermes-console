@@ -34,6 +34,51 @@ void main() {
     },
   );
 
+  test('propaga el costo de Desktop y lo omite cuando no viene', () {
+    final withCost = SessionContextMetrics.fromUsage(
+      DesktopUsageStats.fromJson(const {
+        'context_used': 100,
+        'context_max': 1000,
+        'cost_usd': 0.0234,
+      }),
+    );
+    expect(withCost.costUsd, 0.0234);
+
+    // REST-only connections never publish cost_usd — must stay null, not 0.
+    final withoutCost = SessionContextMetrics.fromUsage(
+      DesktopUsageStats.fromJson(const {
+        'context_used': 100,
+        'context_max': 1000,
+      }),
+    );
+    expect(withoutCost.costUsd, isNull);
+
+    // REST-only sessions have no live `usage.cost_usd`, but Hermes may still
+    // publish Session.actual_cost_usd/estimated_cost_usd — use that instead
+    // of hiding a cost that does exist.
+    final restOnlySession = Session.fromJson(const {
+      'id': 'rest-cost',
+      'actual_cost_usd': 0.0777,
+    });
+    final restOnlyMetrics = SessionContextMetrics.fromUsage(
+      null,
+      sessionFallback: restOnlySession,
+    );
+    expect(restOnlyMetrics.costUsd, 0.0777);
+
+    // fromBreakdown must carry the live cost through as a fallback.
+    final breakdownMetrics = SessionContextMetrics.fromBreakdown(
+      DesktopContextBreakdown.fromJson(const {
+        'context_used': 200,
+        'context_max': 1000,
+        'context_percent': 20,
+        'categories': <Object?>[],
+      }),
+      fallback: withCost,
+    );
+    expect(breakdownMetrics.costUsd, 0.0234);
+  });
+
   test('el breakdown prevalece y acota porcentajes como Desktop', () {
     final metrics = SessionContextMetrics.fromBreakdown(
       DesktopContextBreakdown.fromJson(const {

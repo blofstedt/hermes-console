@@ -16,6 +16,7 @@ class ChatControlLabels {
   final String cron;
   final String? recovery;
   final String? extensions;
+  final String fork;
   final String delete;
   final String readOnly;
 
@@ -30,6 +31,7 @@ class ChatControlLabels {
     required this.artifacts,
     required this.details,
     required this.cron,
+    required this.fork,
     required this.delete,
     required this.readOnly,
     this.recovery,
@@ -52,6 +54,7 @@ class ChatControlSheet extends StatelessWidget {
   final VoidCallback? onCron;
   final VoidCallback? onRecovery;
   final VoidCallback? onExtensions;
+  final VoidCallback? onFork;
   final VoidCallback? onDelete;
 
   const ChatControlSheet({
@@ -68,6 +71,7 @@ class ChatControlSheet extends StatelessWidget {
     this.onCron,
     this.onRecovery,
     this.onExtensions,
+    this.onFork,
     super.key,
   });
 
@@ -134,6 +138,13 @@ class ChatControlSheet extends StatelessWidget {
                 title: labels.permissions,
                 onTap: onPermissions,
               ),
+              if (onFork != null)
+                _ActionRow(
+                  key: const ValueKey('chat-control-fork'),
+                  icon: Icons.call_split_rounded,
+                  title: labels.fork,
+                  onTap: onFork,
+                ),
             ],
           ),
           HermesSectionHeader(

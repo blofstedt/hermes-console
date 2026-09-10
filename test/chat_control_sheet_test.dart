@@ -15,6 +15,7 @@ const _labels = ChatControlLabels(
   artifacts: 'Artifacts',
   details: 'Details',
   cron: 'Schedule',
+  fork: 'Duplicate session',
   delete: 'Delete conversation',
   readOnly: 'Read only',
 );
@@ -24,6 +25,7 @@ Widget _app({
   bool showDelete = true,
   VoidCallback? onDelete,
   VoidCallback? onArtifacts,
+  VoidCallback? onFork,
 }) => MaterialApp(
   theme: AppTheme.hermesRedDark,
   home: Scaffold(
@@ -38,6 +40,7 @@ Widget _app({
       onArtifacts: onArtifacts ?? () {},
       onDetails: () {},
       onCron: () {},
+      onFork: onFork,
       onDelete: showDelete ? onDelete ?? () {} : null,
     ),
   ),
@@ -67,6 +70,21 @@ void main() {
     await tester.tap(find.text('Artifacts'));
     await tester.pump();
     expect(artifactsOpened, isTrue);
+  });
+
+  testWidgets('fork row only appears and fires when onFork is set', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app());
+    expect(find.text('Duplicate session'), findsNothing);
+    expect(find.byKey(const ValueKey('chat-control-fork')), findsNothing);
+
+    var forked = false;
+    await tester.pumpWidget(_app(onFork: () => forked = true));
+    expect(find.text('Duplicate session'), findsOneWidget);
+    await tester.tap(find.text('Duplicate session'));
+    await tester.pump();
+    expect(forked, isTrue);
   });
 
   testWidgets('read-only disables the destructive target', (tester) async {

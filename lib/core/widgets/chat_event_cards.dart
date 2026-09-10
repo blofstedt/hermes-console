@@ -901,11 +901,19 @@ class ChatApprovalCard extends StatelessWidget {
   /// "esperando" tu decisión. Si es null o está apagada, cae a un icono.
   final CompanionController? companion;
 
+  /// Sesión en modo YOLO. `pendingApproval` puede quedar en `true` un frame
+  /// mientras `ActiveChat._handleApprovalRequest` auto-resuelve en segundo
+  /// plano (ver comentario en esa función) — con YOLO omitimos la etiqueta
+  /// extra de herramienta para que ese flash de un frame no gane peso visual
+  /// nuevo; el resto de la tarjeta (que ya existía) no cambia.
+  final bool isYolo;
+
   const ChatApprovalCard({
     required this.approval,
     required this.busy,
     required this.onChoice,
     this.companion,
+    this.isYolo = false,
     super.key,
   });
 
@@ -916,6 +924,7 @@ class ChatApprovalCard extends StatelessWidget {
     final command = (approval['command'] ?? approval['code'] ?? '')
         .toString()
         .trim();
+    final tool = (approval['tool'] ?? '').toString().trim();
     final description = (approval['description'] ?? approval['tool'] ?? '')
         .toString()
         .trim();
@@ -926,6 +935,13 @@ class ChatApprovalCard extends StatelessWidget {
     // en inglés del servidor).
     final what = command.isNotEmpty ? command : description;
     final oneLine = !what.contains('\n') && what.length <= 80;
+    // Cuando el servidor manda `tool` Y `description` como cosas distintas,
+    // la tarjeta históricamente solo mostraba una (description ganaba en el
+    // fallback de arriba). Mostramos el nombre de la herramienta aparte para
+    // que quede claro qué va a actuar, no solo qué va a pasar — pero no bajo
+    // YOLO, donde la tarjeta puede aparecer solo un frame.
+    final showToolLabel =
+        !isYolo && tool.isNotEmpty && tool != description && tool != what;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
@@ -958,6 +974,19 @@ class ChatApprovalCard extends StatelessWidget {
                           color: colors.textPrimary,
                         ),
                       ),
+                      if (showToolLabel) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          tool,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: colors.accent,
+                          ),
+                        ),
+                      ],
                       if (description.isNotEmpty && description != what) ...[
                         const SizedBox(height: 2),
                         Text(

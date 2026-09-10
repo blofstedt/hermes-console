@@ -152,6 +152,7 @@ class SessionContextMetrics {
     this.cacheReadTokens,
     this.cacheWriteTokens,
     this.observedFirstTokenLatencyMs,
+    this.costUsd,
   });
 
   static const unknown = SessionContextMetrics();
@@ -167,6 +168,12 @@ class SessionContextMetrics {
   /// Tiempo observado por Android desde `ActiveChat.send()` hasta el primer
   /// contenido real. No se presenta como latencia pura del modelo.
   final int? observedFirstTokenLatencyMs;
+
+  /// Costo estimado de la sesión en USD, cuando el gateway lo publica. Solo
+  /// existe en la ruta de escritorio (`DesktopUsageStats.costUsd`) — las
+  /// conexiones solo-REST (`/v1/runs`) nunca lo mandan, así que queda `null`
+  /// ahí y la UI lo oculta en vez de fabricar un valor.
+  final double? costUsd;
 
   bool get hasWindow =>
       contextUsed != null && contextMax != null && contextMax! > 0;
@@ -210,6 +217,15 @@ class SessionContextMetrics {
           ? usage?.cacheWriteTokens
           : sessionFallback?.cacheWriteTokens,
       observedFirstTokenLatencyMs: observedFirstTokenLatencyMs,
+      // El costo vive publicado en dos sitios distintos según la ruta:
+      // Desktop lo manda en vivo (`usage.cost_usd`); REST-only no publica un
+      // live cost pero `Session` sí trae `actual_cost_usd`/
+      // `estimated_cost_usd` cuando el servidor los calcula — usar ese
+      // fallback evita mostrar "sin costo" cuando el dato sí existe.
+      costUsd:
+          usage?.costUsd ??
+          sessionFallback?.actualCostUsd ??
+          sessionFallback?.estimatedCostUsd,
     );
     if (used == null || max == null || max <= 0) {
       return SessionContextMetrics(
@@ -218,6 +234,7 @@ class SessionContextMetrics {
         cacheReadTokens: common.cacheReadTokens,
         cacheWriteTokens: common.cacheWriteTokens,
         observedFirstTokenLatencyMs: common.observedFirstTokenLatencyMs,
+        costUsd: common.costUsd,
       );
     }
     return SessionContextMetrics(
@@ -233,6 +250,7 @@ class SessionContextMetrics {
       cacheReadTokens: common.cacheReadTokens,
       cacheWriteTokens: common.cacheWriteTokens,
       observedFirstTokenLatencyMs: common.observedFirstTokenLatencyMs,
+      costUsd: common.costUsd,
     );
   }
 
@@ -268,6 +286,7 @@ class SessionContextMetrics {
       cacheReadTokens: fallback.cacheReadTokens,
       cacheWriteTokens: fallback.cacheWriteTokens,
       observedFirstTokenLatencyMs: fallback.observedFirstTokenLatencyMs,
+      costUsd: fallback.costUsd,
     );
   }
 
@@ -282,7 +301,8 @@ class SessionContextMetrics {
           inputTokens == other.inputTokens &&
           cacheReadTokens == other.cacheReadTokens &&
           cacheWriteTokens == other.cacheWriteTokens &&
-          observedFirstTokenLatencyMs == other.observedFirstTokenLatencyMs;
+          observedFirstTokenLatencyMs == other.observedFirstTokenLatencyMs &&
+          costUsd == other.costUsd;
 
   @override
   int get hashCode => Object.hash(
@@ -294,6 +314,7 @@ class SessionContextMetrics {
     cacheReadTokens,
     cacheWriteTokens,
     observedFirstTokenLatencyMs,
+    costUsd,
   );
 }
 
@@ -685,6 +706,7 @@ class SessionContextPerformance extends StatelessWidget {
     final write = metrics.cacheWriteTokens;
     final latency = metrics.observedFirstTokenLatencyMs;
     final cachePercent = metrics.cacheReadPercent;
+    final cost = metrics.costUsd;
     return Semantics(
       container: true,
       child: Column(
@@ -712,6 +734,14 @@ class SessionContextPerformance extends StatelessWidget {
             _PerformanceRow(
               label: strings.sesMetricCachePercent,
               value: '${cachePercent.toStringAsFixed(1)}%',
+            ),
+          // Solo existe en la ruta de escritorio (DesktopUsageStats.costUsd);
+          // conexiones solo-REST no lo publican, así que la fila se omite en
+          // vez de mostrar un costo inventado.
+          if (cost != null)
+            _PerformanceRow(
+              label: strings.chaContextCost,
+              value: '\$${cost.toStringAsFixed(4)}',
             ),
         ],
       ),
