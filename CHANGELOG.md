@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.18 (4973)
+
+- Center the browser viewport and stop claiming it's waiting when it's idle
+
 ## 1.2.17 (4972)
 
 - Show the browser's live screen in the chat, not just stills
