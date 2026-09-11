@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.22 (4977)
+
+- Remove the Agent Flow Panel
+
 ## 1.2.21 (4976)
 
 - Keep the flow panel mounted past turn end; hide fork on empty chats
