@@ -97,7 +97,6 @@ import '../services/voice/voice_settings.dart';
 import 'voice_settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
-import '../utils/agent_flow_builder.dart';
 import '../utils/api_error.dart';
 import '../utils/pause_suggestion_heuristic.dart';
 import '../utils/voice_error.dart';
@@ -125,7 +124,6 @@ import 'soul_screen.dart';
 import 'tasks_screen.dart';
 import 'chat_render_projection.dart';
 import '../widgets/action_approval.dart';
-import '../widgets/agent_flow_panel.dart';
 import '../widgets/pause_suggestion_chip.dart';
 import '../widgets/attachment_card.dart';
 import '../widgets/attachment_history_preview.dart';
@@ -441,30 +439,6 @@ class _ChatScreenState extends State<ChatScreen>
       context.findAncestorStateOfType<HermesAppState>()?.approvalPolicy
           .effectiveMode(widget.session.id) ==
       ApprovalMode.yolo;
-
-  AgentFlowGraph get _agentFlowGraph => buildAgentFlow(
-    trace: _chat.trace,
-    subagents: _chat.subagentActivities,
-    pendingApproval: _chat.pendingApproval,
-    isYolo: _isYoloSession,
-    turnActive: _sending,
-  );
-
-  bool _agentFlowSeen = false;
-
-  /// Una vez que el panel apareció en este chat se queda montado, aunque el
-  /// grafo quede vacío al terminar el turno (el trace se limpia en el
-  /// cierre). Desmontarlo cambiaría la altura del viewport justo en la
-  /// transición live→terminal, y ahí es donde el bloqueo de viewport mide su
-  /// compensación: los tests de `edge viewport` comprueban que
-  /// `pixels` se mueva exactamente lo que se movió `maxScrollExtent`, así que
-  /// 48px de panel entrando o saliendo en ese instante rompen esa
-  /// contabilidad. Aparecer al arrancar el turno es inofensivo (nadie ha
-  /// medido todavía); desaparecer al terminarlo no lo es.
-  bool get _agentFlowVisible {
-    if (!_agentFlowGraph.isEmpty) _agentFlowSeen = true;
-    return _agentFlowSeen;
-  }
 
   /// Longitud del trace en el momento en que se descartó la sugerencia de
   /// pausa (-1 = nunca se descartó). No se persiste: es solo por sesión de
@@ -7858,23 +7832,6 @@ class _ChatScreenState extends State<ChatScreen>
                     ),
                     child: Column(
                       children: [
-                        // El panel de flujo va ARRIBA del transcript, no
-                        // debajo. La lista es `reverse: true`, o sea que su
-                        // contenido está anclado al borde INFERIOR del
-                        // viewport: cualquier cosa insertada debajo mueve ese
-                        // borde y empuja hacia arriba el texto que estás
-                        // leyendo (48px cada vez que empieza y termina un
-                        // turno). Insertado arriba, el viewport se recorta
-                        // desde el techo y el contenido anclado abajo no se
-                        // mueve ni un píxel.
-                        if (_agentFlowVisible)
-                          AgentFlowPanel(
-                            graph: _agentFlowGraph,
-                            turnActive: _sending,
-                            showIdle: true,
-                            onNodeTap: (node) =>
-                                showAgentFlowNodeDetail(context, node),
-                          ),
                         Expanded(
                           child: Stack(
                             children: [
