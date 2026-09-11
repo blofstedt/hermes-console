@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:hermes_android/core/models/browser_session.dart';
 import 'package:hermes_android/core/theme/app_theme.dart';
 import 'package:hermes_android/core/widgets/browser_live_view_card.dart';
+import 'package:hermes_android/core/widgets/hermes_ui.dart';
 import 'package:hermes_android/l10n/app_localizations.dart';
 
 /// A 1×1 PNG, as a browser tool hands one back.
@@ -102,12 +103,22 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
     // A running step is what makes the card read as live.
     expect(find.text('LIVE'), findsOneWidget);
-    // The picture is scaled and centered by FittedBox, not by Image's own
-    // `fit` — that's what keeps a frame whose aspect ratio doesn't match the
-    // box from being pinned to one edge with a bar down the other side.
+    // The viewport is cut to the browser's own 16:9 shape and the frame
+    // FILLS it, centred: that is what keeps a frame whose aspect ratio does
+    // not quite match from being letterboxed against a black bar.
+    final viewport = tester.widget<AspectRatio>(
+      find
+          .ancestor(
+            of: find.byType(BrowserFrameImage),
+            matching: find.byType(AspectRatio),
+          )
+          .first,
+    );
+    expect(viewport.aspectRatio, closeTo(16 / 9, 0.0001));
+    expect(tester.widget<Image>(find.byType(Image)).fit, BoxFit.cover);
     expect(
-      find.ancestor(of: find.byType(Image), matching: find.byType(FittedBox)),
-      findsOneWidget,
+      tester.widget<Image>(find.byType(Image)).alignment,
+      Alignment.center,
     );
   });
 
@@ -347,13 +358,11 @@ void main() {
     // A streaming screen is not the same claim as a busy tool, and the badge
     // says which one the user is looking at.
     expect(find.text('LIVE VIEW'), findsOneWidget);
-    // Same guard as the static-frame path: FittedBox does the centering, so
-    // a stream frame whose aspect ratio doesn't match the card is scaled and
-    // centered rather than pinned to one edge.
-    expect(
-      find.ancestor(of: find.byType(Image), matching: find.byType(FittedBox)),
-      findsOneWidget,
-    );
+    // Same guard as the static-frame path: a stream frame fills the 16:9
+    // viewport from its centre rather than sitting inside black bars.
+    final streamed = tester.widget<Image>(find.byType(Image));
+    expect(streamed.fit, BoxFit.cover);
+    expect(streamed.alignment, Alignment.center);
   });
 
   testWidgets('an address the server advertised is tried first', (
@@ -385,9 +394,12 @@ void main() {
     expect(client.requested.first, 'http://10.0.0.5:9000/live.mjpg');
   });
 
-  testWidgets('no live view is opened while the browser sits idle', (
-    tester,
-  ) async {
+  testWidgets('the live view stays open once the steps stop', (tester) async {
+    // The viewport is meant to be the browser's ACTIVE tab, and a browser
+    // between two tool calls — or after the last one — is still parked on a
+    // real page. Closing the stream the moment no step was in flight blanked
+    // the card at the one moment the user most wants to see where the run
+    // ended up.
     final client = _StreamingClient();
     await tester.pumpWidget(
       host(
@@ -411,8 +423,41 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    expect(client.requested, isEmpty);
-    expect(find.text('IDLE'), findsOneWidget);
+    expect(client.requested, ['http://10.0.0.5:8090/stream']);
+    expect(find.byType(BrowserLiveStreamView), findsOneWidget);
+  });
+
+  testWidgets('scrubbing back to an earlier frame closes the live view', (
+    tester,
+  ) async {
+    // Someone reading step 1 is reading history, not watching a screen.
+    final client = _StreamingClient();
+    await tester.pumpWidget(
+      host(
+        BrowserLiveViewCard(
+          session: BrowserSessionState(
+            steps: const [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.click,
+                status: BrowserStepStatus.running,
+              ),
+            ],
+            frames: [_frame(), _frame()],
+          ),
+          streamCandidates: const ['http://10.0.0.5:8090/stream'],
+          streamClient: BrowserStreamClient(httpClient: client),
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(BrowserLiveStreamView), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('browser-frame-dot-0')));
+    await tester.pump();
+    expect(find.byType(BrowserLiveStreamView), findsNothing);
   });
 
   testWidgets('a server with no stream falls back to the captured frame', (
@@ -454,7 +499,9 @@ void main() {
     expect(find.text('LIVE'), findsOneWidget);
   });
 
-  testWidgets('the live badge goes out when the turn ends', (tester) async {
+  testWidgets('a turn that ends keeps the screen but drops the busy dot', (
+    tester,
+  ) async {
     final client = _StreamingClient();
     BrowserSessionState session(BrowserStepStatus status) =>
         BrowserSessionState(
@@ -478,12 +525,17 @@ void main() {
     }
     expect(find.text('LIVE VIEW'), findsOneWidget);
 
-    // The turn ends. Nothing is driving the browser, so nothing is live —
-    // the card must stop claiming a picture it is no longer receiving.
+    // The turn ends. The browser is still parked on its active tab and the
+    // screen keeps arriving, so the card goes on showing it — what stops is
+    // the claim that the AGENT is working, which the badge carries in its
+    // colour and its dot rather than in its label.
     await tester.pumpWidget(card(BrowserStepStatus.done));
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('LIVE VIEW'), findsNothing);
-    expect(find.text('IDLE'), findsOneWidget);
-    expect(find.byType(BrowserLiveStreamView), findsNothing);
+    expect(find.text('LIVE VIEW'), findsOneWidget);
+    expect(find.byType(BrowserLiveStreamView), findsOneWidget);
+    final colors = AppTheme.hermesRedDark.hermes;
+    final badge = tester.widget<HermesBadge>(find.byType(HermesBadge));
+    expect(badge.dot, isFalse);
+    expect(badge.color, colors.textDisabled);
   });
 }

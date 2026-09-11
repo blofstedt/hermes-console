@@ -151,26 +151,22 @@ class _BrowserLiveStreamViewState extends State<BrowserLiveStreamView> {
       return widget.placeholder ?? _connectingPlaceholder(context);
     }
     return Stack(
-      fit: StackFit.passthrough,
+      fit: StackFit.expand,
       children: [
-        // FittedBox does the scaling and centering, not Image's own `fit`:
-        // laid out with no constraints it reports its natural size, and
-        // FittedBox then scales and positions the WHOLE result within the box
-        // it is given — always centered, always symmetric. Image's own
-        // `fit`, applied while the box around it is only loosely constrained
-        // in height (it adapts to the frame's aspect ratio, up to a cap), can
-        // size that box to something whose aspect ratio no longer matches the
-        // picture, and paint the picture pinned to one edge of it instead of
-        // centered — the black bar down one side this replaces.
-        FittedBox(
-          fit: BoxFit.contain,
-          child: Image.memory(
-            frame,
-            // Without this the viewport flashes empty between every frame.
-            gaplessPlayback: true,
-            errorBuilder: (_, _, _) =>
-                widget.placeholder ?? const SizedBox.shrink(),
-          ),
+        // The card gives this view a box already cut to the browser's own
+        // 16:9 shape, so the frame FILLS it: a frame at that ratio lands
+        // edge to edge with nothing cropped, and one slightly off it is
+        // trimmed evenly around the centre rather than painted inside black
+        // bars. `contain` was what left a dead strip down one side whenever a
+        // frame came back off-ratio.
+        Image.memory(
+          frame,
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          // Without this the viewport flashes empty between every frame.
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) =>
+              widget.placeholder ?? const SizedBox.shrink(),
         ),
         if (_status == BrowserStreamStatus.reconnecting)
           const Positioned(

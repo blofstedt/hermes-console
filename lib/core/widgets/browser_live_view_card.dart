@@ -120,15 +120,18 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
         ? frames[frameIndex]
         : null;
 
-    // The live view is worth opening only while the browser is actually doing
-    // something, and only while the user is watching the newest frame: someone
-    // scrubbed back to step 3 is reading history, not watching a screen.
+    // The live view stays open for the life of the card, not just while a
+    // step is in flight: the viewport is meant to be the browser's ACTIVE
+    // tab, and a browser between two tool calls is still parked on a real
+    // page. Gating it on `isBusy` blanked the screen to "Browser inactive"
+    // in the gaps between steps and after the last one, which is the one
+    // moment the user most wants to see where the run ended up.
+    //
+    // The one thing that does close it is scrubbing back: someone looking at
+    // step 3 is reading history, not watching a screen.
     final candidates = _streamCandidates();
     final wantsStream =
-        candidates.isNotEmpty &&
-        !_streamUnavailable &&
-        session.isBusy &&
-        _pinnedFrame == null;
+        candidates.isNotEmpty && !_streamUnavailable && _pinnedFrame == null;
 
     return HermesCard(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
@@ -166,9 +169,9 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
                     placeholder: frame == null
                         ? null
                         : ClipRect(
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: BrowserFrameImage(frame: frame),
+                            child: BrowserFrameImage(
+                              frame: frame,
+                              fit: BoxFit.cover,
                             ),
                           ),
                   )
@@ -266,7 +269,10 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
           HermesBadge(
             // "Live view" is claimed only while the screen is genuinely
             // streaming: a busy tool handing back stills is live ACTIVITY,
-            // not a live picture, and a turn that ended is neither.
+            // not a live picture. The stream outlives the steps, so this can
+            // read "live view" on a turn that has ended — which is exactly
+            // true, and the colour below still carries whether the agent
+            // itself is working.
             streaming
                 ? s.browserLiveBadgeStreaming
                 : session.isBusy
@@ -347,6 +353,19 @@ class _BrowserViewport extends StatelessWidget {
   /// own while connecting, so the viewport never blanks.
   final Widget? stream;
 
+  /// Shape of the viewport. The agent's browser runs at a widescreen viewport,
+  /// so the box that shows it is cut to the same shape: a box that adapted to
+  /// whatever each frame happened to measure left dead bars down one side
+  /// whenever a frame came back off-ratio, and changed height under the
+  /// conversation every time one did.
+  static const double _aspectRatio = 16 / 9;
+
+  /// Ceiling on how much of the conversation the screen may take. A card
+  /// stretched to a tablet's full width would otherwise be over 500px tall
+  /// for one turn's browsing. Past this the box stops growing and centres
+  /// itself instead — still exactly [_aspectRatio], never letterboxed.
+  static const double _maxHeight = 320;
+
   const _BrowserViewport({
     required this.frame,
     required this.busy,
@@ -362,36 +381,43 @@ class _BrowserViewport extends StatelessWidget {
     final live = stream;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        color: colors.background,
-        constraints: const BoxConstraints(minHeight: 96, maxHeight: 320),
-        child: live != null
-            ? ClipRect(child: live)
-            : current == null
-            ? _placeholder(colors)
-            : ClipRect(
-                // FittedBox does the scaling and centering, not Image's own
-                // `fit`: laid out with no constraints it reports its natural
-                // size, and FittedBox then scales and positions the whole
-                // result within this box, which always comes out centered.
-                // Image's own `fit`, applied while this box is only loosely
-                // constrained in height, can size itself to something whose
-                // aspect ratio no longer matches the picture and then pin it
-                // to one edge instead of centering it.
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: BrowserFrameImage(frame: current),
-                ),
-              ),
+      child: Align(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: _maxHeight * _aspectRatio,
+          ),
+          child: AspectRatio(
+            aspectRatio: _aspectRatio,
+            child: Container(
+              width: double.infinity,
+              color: colors.background,
+              child: live != null
+                  ? ClipRect(child: live)
+                  : current == null
+                  ? _placeholder(colors)
+                  // `cover` rather than `contain`: the box is already the
+                  // browser's own shape, so a frame that matches it fills it
+                  // exactly with nothing cropped, and one that does not is
+                  // trimmed evenly at the edges — centred either way —
+                  // instead of being letterboxed against black.
+                  : ClipRect(
+                      child: BrowserFrameImage(
+                        frame: current,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _placeholder(HermesThemeColors colors) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+    padding: const EdgeInsets.symmetric(horizontal: 16),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (busy)
           SizedBox(

@@ -4884,7 +4884,6 @@
   "chatAnalyticsRecentHeading": "Recent activity",
   "chatAnalyticsEmpty": "No approval activity recorded on this device yet.",
   "chatAnalyticsLoadError": "Couldn't load analytics.",
-  "pauseSuggestionText": "This turn is doing a lot — want to pause and check in before continuing?",
   "chaArtifactsAction": "Artifacts",
   "artifactTitle": "Session artifacts",
   "artifactCount": "{count, plural, =1{1 item} other{{count} items}}",

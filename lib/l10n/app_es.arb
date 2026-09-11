@@ -6042,7 +6042,6 @@
   "chatAnalyticsRecentHeading": "Actividad reciente",
   "chatAnalyticsEmpty": "Aún no hay actividad de aprobaciones registrada en este dispositivo.",
   "chatAnalyticsLoadError": "No se pudieron cargar las analíticas.",
-  "pauseSuggestionText": "Este turno está haciendo bastante — ¿quieres pausar y revisar antes de continuar?",
   "chaArtifactsAction": "Artefactos",
   "artifactTitle": "Artefactos de la sesión",
   "artifactCount": "{count, plural, =1{1 elemento} other{{count} elementos}}",
