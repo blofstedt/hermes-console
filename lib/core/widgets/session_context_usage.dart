@@ -740,7 +740,7 @@ class SessionContextPerformance extends StatelessWidget {
           // vez de mostrar un costo inventado.
           if (cost != null)
             _PerformanceRow(
-              label: strings.chaContextCost,
+              label: strings.chaContextEstimatedCost,
               value: '\$${cost.toStringAsFixed(4)}',
             ),
         ],
