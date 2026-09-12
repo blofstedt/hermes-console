@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.23 (4978)
+
+- Remove the pause suggestion alert
+
 ## 1.2.22 (4977)
 
 - Remove the Agent Flow Panel
