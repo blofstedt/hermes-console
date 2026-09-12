@@ -3,6 +3,10 @@
 All notable public changes are documented here. Internal QA/profile artifacts
 are not releases.
 
+## 1.2.24 (4979)
+
+- fix(browser-live-view): poll a fresh screen still over the dashboard media route
+
 ## 1.2.23 (4978)
 
 - Remove the pause suggestion alert
