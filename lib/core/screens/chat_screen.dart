@@ -98,7 +98,6 @@ import 'voice_settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../utils/api_error.dart';
-import '../utils/pause_suggestion_heuristic.dart';
 import '../utils/voice_error.dart';
 import '../utils/chat_error.dart';
 import '../utils/chat_turn.dart';
@@ -124,7 +123,6 @@ import 'soul_screen.dart';
 import 'tasks_screen.dart';
 import 'chat_render_projection.dart';
 import '../widgets/action_approval.dart';
-import '../widgets/pause_suggestion_chip.dart';
 import '../widgets/attachment_card.dart';
 import '../widgets/attachment_history_preview.dart';
 import '../widgets/attachment_source_sheet.dart';
@@ -439,20 +437,6 @@ class _ChatScreenState extends State<ChatScreen>
       context.findAncestorStateOfType<HermesAppState>()?.approvalPolicy
           .effectiveMode(widget.session.id) ==
       ApprovalMode.yolo;
-
-  /// Longitud del trace en el momento en que se descartó la sugerencia de
-  /// pausa (-1 = nunca se descartó). No se persiste: es solo por sesión de
-  /// pantalla. Si el trace sigue creciendo después de descartarla (el turno
-  /// sigue escalando), vuelve a aparecer en vez de quedar apagada para
-  /// siempre.
-  int _pauseHintDismissedAtTraceLength = -1;
-
-  bool get _showPauseSuggestion =>
-      shouldSuggestPause(
-        recentTrace: _chat.trace,
-        draftMessageLength: _textController.text.length,
-      ) &&
-      _chat.trace.length != _pauseHintDismissedAtTraceLength;
 
   bool _loading = true;
   String? _error;
@@ -7947,20 +7931,6 @@ class _ChatScreenState extends State<ChatScreen>
                             },
                           ),
                         _buildQueueStrip(colors),
-                        AnimatedBuilder(
-                          animation: _textController,
-                          builder: (context, _) {
-                            if (!_showPauseSuggestion) {
-                              return const SizedBox.shrink();
-                            }
-                            return PauseSuggestionChip(
-                              onDismiss: () => setState(
-                                () => _pauseHintDismissedAtTraceLength =
-                                    _chat.trace.length,
-                              ),
-                            );
-                          },
-                        ),
                         if ((_vc?.active ?? false) && !showVoiceSurface)
                           _buildVoiceReturnBar(
                             colors,
