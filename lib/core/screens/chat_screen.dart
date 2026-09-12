@@ -64,6 +64,7 @@ import '../services/artifact_export_service.dart';
 import '../services/attachment_uploader.dart';
 import '../services/command_risk.dart';
 import '../services/bridge_client.dart';
+import '../services/browser_snapshot_poller.dart';
 import '../services/bridge_update_service.dart';
 import '../services/chat_draft_store.dart';
 import '../services/chat_preference_store.dart';
@@ -411,6 +412,28 @@ class _ChatScreenState extends State<ChatScreen>
   // ese setState tardío reventaba con "_lifecycleState != defunct". Filtrar por
   // este flag además de `mounted` corta esos eventos diferidos.
   bool _disposed = false;
+
+  /// One still-poller per connection, kept across rebuilds: the chat screen is
+  /// rebuilt for every stream event, and rebuilding the live-view card must not
+  /// restart polling or blank the picture already on screen.
+  BrowserSnapshotPoller? _browserSnapshotPollerInstance;
+  String? _browserSnapshotPollerConnectionId;
+
+  BrowserSnapshotPoller _browserSnapshotPollerFor() {
+    final connection = widget.connection;
+    final existing = _browserSnapshotPollerInstance;
+    if (existing != null &&
+        _browserSnapshotPollerConnectionId == connection.id) {
+      return existing;
+    }
+    existing?.stop();
+    final poller = BrowserSnapshotPoller.fromDashboard(
+      dashboard: DashboardClient.lazy(connection),
+    );
+    _browserSnapshotPollerInstance = poller;
+    _browserSnapshotPollerConnectionId = connection.id;
+    return poller;
+  }
 
   bool _editingUserMessage = false;
   bool _editingRewriteSubmitted = false;
@@ -3596,6 +3619,7 @@ class _ChatScreenState extends State<ChatScreen>
     // defunct. El stream del agente NO se cancela aquí: el servicio lo mantiene
     // vivo en segundo plano (se suelta más abajo con _chatService.release).
     _disposed = true;
+    _browserSnapshotPollerInstance?.stop();
     WidgetsBinding.instance.removeObserver(this);
     hermesRouteObserver.unsubscribe(this);
     // Al salir de la pantalla deja de ser la sesión visible (si lo era).
@@ -7915,6 +7939,7 @@ class _ChatScreenState extends State<ChatScreen>
                               'Authorization':
                                   'Bearer ${widget.connection.apiKey}',
                             },
+                            snapshotPoller: _browserSnapshotPollerFor(),
                           ),
                         if (_chat.subagentActivities.isNotEmpty)
                           SubagentActivityCard(

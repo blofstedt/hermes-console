@@ -1,11 +1,13 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../models/browser_session.dart';
-import '../theme/app_theme.dart';
+import '../services/browser_snapshot_poller.dart';
 import '../services/browser_stream_client.dart';
+import '../theme/app_theme.dart';
 import 'browser_live_stream_view.dart';
 import 'hermes_premium_ui.dart';
 import 'hermes_ui.dart';
@@ -44,6 +46,10 @@ class BrowserLiveViewCard extends StatefulWidget {
   /// Injection seam for tests; null means the view opens its own client.
   final BrowserStreamClient? streamClient;
 
+  /// Polls stills of the browser screen over the dashboard's media route. Null
+  /// leaves the card with only the stream and tool-result frames.
+  final BrowserSnapshotPoller? snapshotPoller;
+
   const BrowserLiveViewCard({
     required this.session,
     this.busy = false,
@@ -52,6 +58,7 @@ class BrowserLiveViewCard extends StatefulWidget {
     this.streamCandidates = const [],
     this.streamHeaders = const {},
     this.streamClient,
+    this.snapshotPoller,
     super.key,
   });
 
@@ -78,9 +85,46 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
   /// viewport is showing the screen rather than a still.
   bool _streamLive = false;
 
+  /// Newest still pulled over the dashboard's media route, wrapped as a frame
+  /// so the viewport, the zoomable viewer and the caption all reuse the same
+  /// rendering path. Replaced only when the picture changes, so a still is
+  /// encoded once rather than on every rebuild.
+  BrowserFrame? _snapshotFrame;
+
+  @override
+  void initState() {
+    super.initState();
+    _startSnapshotPolling();
+  }
+
+  /// Starts pulling stills of the browser screen, when this card was given a
+  /// poller. Every new picture replaces the previous one on screen.
+  void _startSnapshotPolling() {
+    final poller = widget.snapshotPoller;
+    if (poller == null) return;
+    poller.start((bytes) {
+      if (!mounted) return;
+      setState(() {
+        _snapshotFrame = BrowserFrame(
+          kind: BrowserFrameKind.dataUri,
+          source: 'data:image/jpeg;base64,${base64Encode(bytes)}',
+          capturedAt: DateTime.now(),
+          url: widget.session.url,
+        );
+      });
+    });
+  }
+
   @override
   void didUpdateWidget(covariant BrowserLiveViewCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // A different poller (another instance, or another connection) must not
+    // inherit the previous one's picture.
+    if (!identical(oldWidget.snapshotPoller, widget.snapshotPoller)) {
+      oldWidget.snapshotPoller?.stop();
+      _snapshotFrame = null;
+      _startSnapshotPolling();
+    }
     final pinned = _pinnedFrame;
     if (pinned != null && pinned >= widget.session.frames.length) {
       _pinnedFrame = null;
@@ -94,6 +138,7 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
 
   @override
   void dispose() {
+    widget.snapshotPoller?.stop();
     _input.dispose();
     super.dispose();
   }
@@ -130,6 +175,11 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
         session.isBusy &&
         _pinnedFrame == null;
 
+    // A still pulled over the dashboard's media route is the freshest picture
+    // the card can honestly show, so it outranks a frame embedded in a tool
+    // result — which, on a real deployment, never arrives at all.
+    final current = _snapshotFrame ?? frame;
+
     return HermesCard(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       padding: EdgeInsets.zero,
@@ -139,7 +189,7 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
         children: [
           _header(colors, s, streaming: wantsStream && _streamLive),
           _BrowserViewport(
-            frame: frame,
+            frame: current,
             busy: session.isBusy,
             // "Waiting for the first frame…" is a promise something is about
             // to arrive; once the browser is no longer busy, nothing is
@@ -163,21 +213,21 @@ class _BrowserLiveViewCardState extends State<BrowserLiveViewCard> {
                         setState(() => _streamLive = true);
                       }
                     },
-                    placeholder: frame == null
+                    placeholder: current == null
                         ? null
                         : ClipRect(
                             child: FittedBox(
                               fit: BoxFit.contain,
-                              child: BrowserFrameImage(frame: frame),
+                              child: BrowserFrameImage(frame: current),
                             ),
                           ),
                   )
                 : null,
-            onTap: frame == null
+            onTap: current == null
                 ? null
                 : () => showBrowserFrameViewer(
                     context: context,
-                    frame: frame,
+                    frame: current,
                     caption: session.url,
                   ),
           ),

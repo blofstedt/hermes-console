@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hermes_android/core/services/browser_stream_client.dart';
+import 'package:hermes_android/core/services/browser_snapshot_poller.dart';
 import 'package:hermes_android/core/widgets/browser_live_stream_view.dart';
 import 'package:http/http.dart' as http;
 import 'package:hermes_android/core/models/browser_session.dart';
@@ -485,5 +486,49 @@ void main() {
     expect(find.text('LIVE VIEW'), findsNothing);
     expect(find.text('IDLE'), findsOneWidget);
     expect(find.byType(BrowserLiveStreamView), findsNothing);
+  });
+
+  testWidgets('fills the viewport from a still pulled over the media route', (
+    tester,
+  ) async {
+    final poller = BrowserSnapshotPoller(
+      interval: const Duration(milliseconds: 10),
+      fetch: () async => base64Decode(_jpegBase64),
+    );
+
+    await tester.pumpWidget(
+      host(
+        BrowserLiveViewCard(
+          session: const BrowserSessionState(
+            steps: [
+              BrowserStep(
+                id: 'c1',
+                action: BrowserAction.navigate,
+                status: BrowserStepStatus.done,
+                target: 'example.com',
+              ),
+            ],
+            url: 'https://example.com/',
+          ),
+          snapshotPoller: poller,
+        ),
+      ),
+    );
+
+    // No tool result ever carried a frame, so the viewport starts empty and
+    // says so honestly...
+    expect(find.byType(Image), findsNothing);
+    expect(find.text('Browser inactive'), findsOneWidget);
+
+    // ...and the still that arrives over the dashboard's own media route fills
+    // it in. This is the whole point: the picture does not depend on a stream
+    // being published or on a frame surviving inside a tool result.
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(find.byType(Image), findsOneWidget);
+
+    // Tearing the card down must take its polling with it.
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(poller.isRunning, isFalse);
   });
 }
